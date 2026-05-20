@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Twitch 簽到月曆（FINAL FULL + SOUND）</title>
+
+<style>
+body {
+    background: transparent;
+    margin: 0;
+    overflow: hidden;
+    font-family: "Microsoft JhengHei";
+    width: 100vw;
+    height: 100vh;
+    color: white;
+}
+
+/* ===================== */
+.calendar-container {
+    width: 900px;
+    background: rgba(15,15,15,0.95);
+    border: 2px solid #a970ff;
+    border-radius: 24px;
+    padding: 40px;
+
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.5);
+    transition: 0.4s;
+}
+
+.calendar-container.show {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+}
+
+.banner-alert {
+    text-align: center;
+    font-size: 28px;
+    color: #00ffcc;
+    margin-bottom: 20px;
+}
+
+.calendar-header {
+    text-align: center;
+    font-size: 40px;
+    margin-bottom: 20px;
+    color: #a970ff;
+}
+
+.days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+}
+
+.day-name {
+    text-align: center;
+    color: #aaa;
+    font-size: 18px;
+}
+
+.day {
+    background: rgba(255,255,255,0.08);
+    border-radius: 14px;
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-avatar {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 999;
+}
+
+.day-number {
+    position: relative;
+    z-index: 1;
+    font-size: 34px;
+    font-weight: bold;
+}
+
+.empty-day {
+    height: 120px;
+}
+
+@keyframes stampPop {
+
+    0% {
+        transform: scale(2) rotate(-15deg);
+        opacity: 0;
+    }
+
+    60% {
+        transform: scale(0.9) rotate(5deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+.stamp-animation {
+    animation: stampPop 0.45s ease;
+}
+</style>
+</head>
+
+<body>
+
+<audio id="stampSound" src="stamp.mp3" preload="auto"></audio>
+
+<div class="calendar-container" id="calendarBox">
+
+    <div class="banner-alert" id="alertText">
+        🎉 Twitch 簽到系統
+    </div>
+
+    <div class="calendar-header" id="calendarTitle"></div>
+
+    <div class="days-grid" id="daysGrid">
+        <div class="day-name">日</div>
+        <div class="day-name">一</div>
+        <div class="day-name">二</div>
+        <div class="day-name">三</div>
+        <div class="day-name">四</div>
+        <div class="day-name">五</div>
+        <div class="day-name">六</div>
+    </div>
+
+</div>
+
+<script>
+
+/* ===================== CONFIG ===================== */
+const API_URL = "https://script.google.com/macros/s/AKfycbwjjsXiHKF0ONHg3ptKk1rX3LsQhDloT0_CVqvljnskpNhBPvbxY2H9-JD7S97nn9ZsQA/exec";
+const CHANNEL = "longkey";
+const DISPLAY_SECONDS = 6;
+
+/* ===================== STATE ===================== */
+const queue = [];
+
+let currentYear = null;
+let currentMonth = null;
+
+/* ===================== DOM ===================== */
+const box = document.getElementById("calendarBox");
+const grid = document.getElementById("daysGrid");
+const alertText = document.getElementById("alertText");
+
+/* ===================== TIME ===================== */
+function getNowInfo(){
+
+    const now = new Date();
+
+    return {
+        year: now.getFullYear(),
+        month: now.getMonth(),
+        today: now.getDate()
+    };
+}
+
+/* ===================== CALENDAR ===================== */
+const dayCells = {};
+
+function rebuildCalendar(year, month, today){
+
+    currentYear = year;
+    currentMonth = month;
+
+    grid.innerHTML = `
+        <div class="day-name">日</div>
+        <div class="day-name">一</div>
+        <div class="day-name">二</div>
+        <div class="day-name">三</div>
+        <div class="day-name">四</div>
+        <div class="day-name">五</div>
+        <div class="day-name">六</div>
+    `;
+
+    Object.keys(dayCells).forEach(k => delete dayCells[k]);
+
+    document.getElementById("calendarTitle").innerText =
+    `${year} 年 ${String(month+1).padStart(2,'0')} 月`;
+
+    const first = new Date(year, month, 1).getDay();
+    const total = new Date(year, month+1, 0).getDate();
+
+    for(let i=0;i<first;i++){
+
+        const e=document.createElement("div");
+        e.className="empty-day";
+        grid.appendChild(e);
+    }
+
+    for(let d=1; d<=total; d++){
+
+        const cell=document.createElement("div");
+        cell.className="day";
+
+        const num=document.createElement("div");
+        num.className="day-number";
+        num.innerText=d;
+
+        cell.appendChild(num);
+
+        if(d===today){
+
+            cell.id="today-cell";
+            cell.style.border="2px dashed #a970ff";
+        }
+
+        grid.appendChild(cell);
+
+        dayCells[d]=cell;
+    }
+}
+
+const init = getNowInfo();
+rebuildCalendar(init.year, init.month, init.today);
+
+/* ===================== SOUND ===================== */
+function playSound(){
+
+    const audio = document.getElementById("stampSound");
+
+    if(!audio) return;
+
+    audio.currentTime = 0;
+
+    audio.play().catch(()=>{});
+}
+
+/* ===================== QUEUE ===================== */
+function enqueue(event){
+
+    const nowInfo = getNowInfo();
+
+    event.uiYear = nowInfo.year;
+    event.uiMonth = nowInfo.month;
+    event.uiToday = nowInfo.today;
+
+    queue.push(event);
+
+    if(queue.length === 1){
+        process();
+    }
+}
+
+function process(){
+
+    if(queue.length===0) return;
+
+    showEvent(queue[0]).then(()=>{
+
+        queue.shift();
+
+        process();
+    });
+}
+
+/* ===================== AVATAR ===================== */
+function clearAllAvatars(){
+
+    Object.values(dayCells).forEach(cell => {
+
+        const img = cell.querySelector("img");
+
+        if(img){
+            img.remove();
+        }
+    });
+}
+
+function renderUserDates(userDates, avatar){
+
+    clearAllAvatars();
+
+    if(!userDates) return;
+
+    for(const date of userDates){
+
+        const day = parseInt(date.split("-")[2]);
+
+        const cell = dayCells[day];
+
+        if(!cell) continue;
+
+        const img = document.createElement("img");
+
+        img.src = avatar;
+        img.className = "user-avatar";
+
+        cell.appendChild(img);
+    }
+}
+
+/* ===================== EVENT ===================== */
+function showEvent(event){
+
+return new Promise((resolve)=>{
+
+    const nowInfo = getNowInfo();
+
+    /* 🔥 跨月時重建月曆 */
+    if(
+        nowInfo.year !== currentYear ||
+        nowInfo.month !== currentMonth
+    ){
+        rebuildCalendar(
+            nowInfo.year,
+            nowInfo.month,
+            nowInfo.today
+        );
+    }
+
+    fetch(API_URL +
+        `?date=${encodeURIComponent(event.dateKey)}` +
+        `&username=${encodeURIComponent(event.username)}` +
+        `&displayName=${encodeURIComponent(event.displayName)}` +
+        `&avatar=${encodeURIComponent(event.avatar)}`
+    )
+    .then(r=>r.json())
+    .then(json=>{
+
+        if(!json.showCalendar){
+
+            box.classList.remove("show");
+
+            alertText.innerText =
+            `${event.displayName} 已簽到`;
+
+            resolve();
+
+            return;
+        }
+
+        box.classList.add("show");
+
+        alertText.innerText =
+            json.isFirst
+            ? `👑 ${event.displayName} 搶到頭香！`
+            : `${event.displayName} 已簽到`;
+
+        /* 🔥 只渲染當前 user */
+        renderUserDates(
+            json.userDates,
+            event.avatar
+        );
+
+        /* 🔥 today avatar */
+        const todayCell =
+        document.getElementById("today-cell");
+
+        if(todayCell){
+
+            const old =
+            todayCell.querySelector("img");
+
+            if(old){
+                old.remove();
+            }
+
+            const img=document.createElement("img");
+
+            img.src=event.avatar;
+            img.className = "user-avatar stamp-animation";
+
+            todayCell.appendChild(img);
+            playSound();
+        }
+
+        setTimeout(()=>{
+
+            box.classList.remove("show");
+
+            resolve();
+
+        }, DISPLAY_SECONDS * 1000);
+
+    })
+    .catch(err=>{
+
+        console.log(err);
+
+        alertText.innerText =
+        "⚠️ API error";
+
+        resolve();
+    });
+
+});
+}
+
+/* ===================== TWITCH ===================== */
+function connect(){
+
+    const ws =
+    new WebSocket(
+        "wss://irc-ws.chat.twitch.tv:443"
+    );
+
+    ws.onopen=()=>{
+
+        ws.send("PASS SCHMOOPIE");
+
+        ws.send(
+            "NICK justinfan"+
+            Math.floor(Math.random()*99999)
+        );
+
+        ws.send(`JOIN #${CHANNEL}`);
+    };
+
+    ws.onmessage=(ev)=>{
+
+        const msgs =
+        ev.data.split("\r\n");
+
+        for(const msg of msgs){
+
+            if(!msg.includes("PRIVMSG"))
+                continue;
+
+            const u =
+            msg.match(/:([^!]+)!/);
+
+            if(!u) continue;
+
+            const username =
+            u[1].toLowerCase();
+
+            const display =
+            msg.match(
+                /display-name=([^;]*)/
+            )?.[1] || username;
+
+            const nowInfo = getNowInfo();
+
+            enqueue({
+
+                username,
+
+                displayName:display,
+
+                avatar:
+                `https://unavatar.io/twitch/${username}`,
+
+                dateKey:
+                `${nowInfo.year}-${String(nowInfo.month+1).padStart(2,'0')}-${String(nowInfo.today).padStart(2,'0')}`
+            });
+        }
+    };
+
+    ws.onclose=()=>{
+
+        setTimeout(connect,3000);
+    };
+}
+
+connect();
+
+</script>
+</body>
+</html>
