@@ -1,7 +1,7 @@
-# TwitchCheckInCalendar
+# CheckInCalendarForStream
 
-Let Twitch streamers show a check-in calendar for their audience.  
-讓 Twitch 實況主能為他們的觀眾展示簽到日曆。
+Let streamers show a check-in calendar for their audience.  
+讓實況主能為他們的觀眾展示簽到日曆。
 
 ## ⚖️ License & Third-Party Assets / 開源授權與第三方素材
 
