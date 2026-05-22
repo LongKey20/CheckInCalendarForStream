@@ -8,8 +8,9 @@ __pycache__/
 *.swp
 *.swo
 *.~
+*.zip
 
-# Ignore CSV data folder
+# Ignore data folder
 csv/
 dist/
 release/
