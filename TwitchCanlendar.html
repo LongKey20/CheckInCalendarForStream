@@ -316,12 +316,24 @@ async function localRequest(event){
 /* ===================== TIME ===================== */
 function getNowInfo(){
 
-    const now = new Date();
+    const opts = {
+        timeZone: "Asia/Tokyo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    };
+    const parts = new Intl.DateTimeFormat("en-CA", opts).formatToParts(new Date());
+    const map = {};
+    for(const part of parts){
+        if(part.type !== "literal"){
+            map[part.type] = part.value;
+        }
+    }
 
     return {
-        year: now.getFullYear(),
-        month: now.getMonth(),
-        today: now.getDate()
+        year: Number(map.year),
+        month: Number(map.month) - 1,
+        today: Number(map.day)
     };
 }
 
