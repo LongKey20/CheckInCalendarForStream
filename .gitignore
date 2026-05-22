@@ -1,0 +1,16 @@
+# Ignore Python bytecode cache directories
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Ignore editor swap/temp files
+*.swp
+*.swo
+*.~
+
+# Ignore CSV data folder
+csv/
+dist/
+release/
+build/

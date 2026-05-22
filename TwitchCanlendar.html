@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Twitch 簽到月曆（FINAL FULL + SOUND）</title>
+
+<link id="themeStyle" rel="stylesheet" href="theme/default.css">
+</head>
+
+<body>
+
+<audio id="stampSound" src="audio/stamp.mp3" preload="auto"></audio>
+
+<div class="calendar-container" id="calendarBox">
+
+    <div class="banner-alert" id="alertText">
+        🎉 Twitch 簽到系統
+    </div>
+
+    <div class="calendar-header" id="calendarTitle"></div>
+
+    <div class="days-grid" id="daysGrid">
+        <div class="day-name">日</div>
+        <div class="day-name">一</div>
+        <div class="day-name">二</div>
+        <div class="day-name">三</div>
+        <div class="day-name">四</div>
+        <div class="day-name">五</div>
+        <div class="day-name">六</div>
+    </div>
+
+</div>
+
+<script>
+
+/* ===================== CONFIG ===================== */
+const CONFIG = {
+    channel: "longkey",
+    displaySeconds: 6,
+    dataUrl: "/calendar",
+    apiWriteUrl: "/api/write-csv",
+    style: "theme/default.css"
+};
+
+const COMMANDS = ["!簽到"];
+
+async function loadClientConfig(){
+    try {
+        const response = await fetch("config/client_config.json", { cache: "no-store" });
+        if (!response.ok) {
+            console.warn("No external config found, using defaults.");
+            return;
+        }
+        const config = await response.json();
+        Object.assign(CONFIG, config);
+
+        if (typeof CONFIG.style === "string" && CONFIG.style.trim() !== "") {
+            const styleLink = document.getElementById("themeStyle");
+            if (styleLink) {
+                styleLink.href = CONFIG.style.trim();
+            }
+        }
+    } catch (err) {
+        console.warn("Failed to load client_config.json", err);
+    }
+}
+
+async function loadCommandConfig(){
+    try {
+        const response = await fetch("config/command.json", { cache: "no-store" });
+        if (!response.ok) {
+            console.warn("No command.json found, using default commands.");
+            return;
+        }
+        const json = await response.json();
+        const list = Array.isArray(json.ShowCalendarCommand)
+            ? json.ShowCalendarCommand
+            : Array.isArray(json.commands)
+                ? json.commands
+                : Array.isArray(json)
+                    ? json
+                    : null;
+
+        if (Array.isArray(list) && list.length > 0) {
+            COMMANDS.length = 0;
+            COMMANDS.push(...list.map(item => String(item).trim()).filter(Boolean));
+        } else {
+            console.warn("command.json did not contain a valid ShowCalendarCommand list. Using default commands.");
+        }
+    } catch (err) {
+        console.warn("Failed to load command.json", err);
+    }
+}
+
+const CSV_HEADERS = [
+    "date",
+    "username",
+    "displayName",
+    "avatar",
+    "timestamp",
+    "isFirst"
+];
+
+/* ===================== STATE ===================== */
+const queue = [];
+
+let currentYear = null;
+let currentMonth = null;
+
+/* ===================== DOM ===================== */
+const box = document.getElementById("calendarBox");
+const grid = document.getElementById("daysGrid");
+const alertText = document.getElementById("alertText");
+
+/* ===================== CSV HELPERS ===================== */
+async function readLocalCsv(){
+    try {
+        const response = await fetch(CONFIG.dataUrl, { cache: "no-store" });
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+        const text = await response.text();
+        return text ? parseCsv(text) : [];
+    } catch (err) {
+        console.error("Failed to load CSV from backend:", err);
+        return [];
+    }
+}
+
+async function writeLocalCsv(rows){
+    const csvText = stringifyCsv(rows);
+
+    const response = await fetch(CONFIG.apiWriteUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            csv: csvText
+        })
+    });
+
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`CSV write failed: ${response.status} ${body}`);
+    }
+}
+
+function parseCsv(text){
+    const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(line => line.trim() !== "");
+    const rows = [];
+    let current = [];
+    let field = "";
+    let inQuotes = false;
+
+    for(const line of lines){
+        if(line === "" && !inQuotes){
+            if(current.length > 0){
+                rows.push(current);
+                current = [];
+            }
+            continue;
+        }
+
+        for(let i = 0; i < line.length; i++){
+            const ch = line[i];
+
+            if(ch === '"'){
+                if(inQuotes && line[i+1] === '"'){
+                    field += '"';
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if(ch === ',' && !inQuotes){
+                current.push(field);
+                field = "";
+            } else {
+                field += ch;
+            }
+        }
+
+        if(!inQuotes){
+            current.push(field);
+            rows.push(current);
+            current = [];
+            field = "";
+        } else {
+            field += "\n";
+        }
+    }
+
+    if(current.length || field){
+        current.push(field);
+        rows.push(current);
+    }
+
+    return rows;
+}
+
+function stringifyCsv(rows){
+    return rows
+        .filter(row => Array.isArray(row) && row.length > 0)
+        .map(row => row.map(field => {
+            const value = String(field || "");
+            if(value.includes(",") || value.includes("\"") || value.includes("\n")){
+                return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+        }).join(",")).join("\r\n");
+}
+
+function formatTokyoTimestamp(date){
+    const opts = {
+        timeZone: "Asia/Tokyo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    };
+    const parts = new Intl.DateTimeFormat("en-GB", opts).formatToParts(date);
+    const map = {};
+    for(const part of parts){
+        if(part.type !== "literal"){
+            map[part.type] = part.value;
+        }
+    }
+    return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+}
+
+async function localRequest(event){
+    const dateStr = event.dateKey;
+    const username = event.username;
+    const displayName = event.displayName;
+    const avatar = event.avatar;
+    const rows = await readLocalCsv();
+    const data = rows.length ? rows : [CSV_HEADERS];
+
+    let hasAnyToday = false;
+    let alreadyUserToday = false;
+    const userDates = new Set();
+
+    for(let i = 1; i < data.length; i++){
+        const row = data[i];
+        if(!row || row.length < 2) continue;
+        const rowDate = row[0];
+        const rowUser = row[1];
+
+        if(rowUser === username){
+            userDates.add(rowDate);
+        }
+
+        if(dateStr && rowDate === dateStr){
+            hasAnyToday = true;
+            if(rowUser === username){
+                alreadyUserToday = true;
+            }
+        }
+    }
+
+    if(!dateStr){
+        return {
+            success: true,
+            showCalendar: true,
+            isFirst: false,
+            userDates: Array.from(userDates),
+            signedToday: alreadyUserToday
+        };
+    }
+
+    if(alreadyUserToday){
+        if(event.forceShowCalendar){
+            return {
+                success: true,
+                showCalendar: true,
+                isFirst: false,
+                userDates: Array.from(userDates),
+                signedToday: true
+            };
+        }
+
+        return {
+            success: true,
+            showCalendar: false,
+            isFirst: false,
+            userDates: []
+        };
+    }
+
+    const isFirst = !hasAnyToday;
+    const timestamp = formatTokyoTimestamp(new Date());
+
+    data.push([
+        dateStr,
+        username,
+        displayName,
+        avatar,
+        timestamp,
+        isFirst ? "YES" : "NO"
+    ]);
+
+    await writeLocalCsv(data);
+    userDates.add(dateStr);
+
+    return {
+        success: true,
+        showCalendar: true,
+        isFirst,
+        userDates: Array.from(userDates)
+    };
+}
+
+/* ===================== TIME ===================== */
+function getNowInfo(){
+
+    const now = new Date();
+
+    return {
+        year: now.getFullYear(),
+        month: now.getMonth(),
+        today: now.getDate()
+    };
+}
+
+/* ===================== CALENDAR ===================== */
+const dayCells = {};
+
+function rebuildCalendar(year, month, today){
+
+    currentYear = year;
+    currentMonth = month;
+
+    grid.innerHTML = `
+        <div class="day-name">日</div>
+        <div class="day-name">一</div>
+        <div class="day-name">二</div>
+        <div class="day-name">三</div>
+        <div class="day-name">四</div>
+        <div class="day-name">五</div>
+        <div class="day-name">六</div>
+    `;
+
+    Object.keys(dayCells).forEach(k => delete dayCells[k]);
+
+    document.getElementById("calendarTitle").innerText =
+    `${year} 年 ${String(month+1).padStart(2,'0')} 月`;
+
+    const first = new Date(year, month, 1).getDay();
+    const total = new Date(year, month+1, 0).getDate();
+
+    for(let i=0;i<first;i++){
+
+        const e=document.createElement("div");
+        e.className="empty-day";
+        grid.appendChild(e);
+    }
+
+    for(let d=1; d<=total; d++){
+
+        const cell=document.createElement("div");
+        cell.className="day";
+
+        const num=document.createElement("div");
+        num.className="day-number";
+        num.innerText=d;
+
+        cell.appendChild(num);
+
+        if(d===today){
+
+            cell.id="today-cell";
+            cell.style.border="2px dashed #a970ff";
+        }
+
+        grid.appendChild(cell);
+
+        dayCells[d]=cell;
+    }
+}
+
+/* ===================== SOUND ===================== */
+function playSound(){
+
+    const audio = document.getElementById("stampSound");
+
+    if(!audio) return;
+
+    audio.currentTime = 0;
+
+    audio.play().catch(()=>{});
+}
+
+/* ===================== QUEUE ===================== */
+function enqueue(event){
+
+    const nowInfo = getNowInfo();
+
+    event.uiYear = nowInfo.year;
+    event.uiMonth = nowInfo.month;
+    event.uiToday = nowInfo.today;
+
+    queue.push(event);
+
+    if(queue.length === 1){
+        process();
+    }
+}
+
+function process(){
+
+    if(queue.length===0) return;
+
+    showEvent(queue[0]).then(()=>{
+
+        queue.shift();
+
+        process();
+    });
+}
+
+/* ===================== AVATAR ===================== */
+function clearAllAvatars(){
+
+    Object.values(dayCells).forEach(cell => {
+
+        const img = cell.querySelector("img");
+
+        if(img){
+            img.remove();
+        }
+    });
+}
+
+function renderUserDates(userDates, avatar){
+
+    clearAllAvatars();
+
+    if(!userDates) return;
+
+    for(const date of userDates){
+
+        const day = parseInt(date.split("-")[2]);
+
+        const cell = dayCells[day];
+
+        if(!cell) continue;
+
+        const img = document.createElement("img");
+
+        img.src = avatar;
+        img.className = "user-avatar";
+
+        cell.appendChild(img);
+    }
+}
+
+/* ===================== EVENT ===================== */
+function showEvent(event){
+
+return new Promise((resolve)=>{
+
+    const nowInfo = getNowInfo();
+
+    /* 🔥 跨月時重建月曆 */
+    if(
+        nowInfo.year !== currentYear ||
+        nowInfo.month !== currentMonth
+    ){
+        rebuildCalendar(
+            nowInfo.year,
+            nowInfo.month,
+            nowInfo.today
+        );
+    }
+
+    localRequest(event)
+    .then(json=>{
+
+        if(!json.showCalendar){
+
+            box.classList.remove("show");
+
+            alertText.innerText =
+            `${event.displayName} 已簽到`;
+
+            resolve();
+
+            return;
+        }
+
+        box.classList.add("show");
+
+        if(json.isFirst){
+            alertText.innerText = `👑 ${event.displayName} 搶到頭香！`;
+        } else if(json.signedToday){
+            alertText.innerText = `${event.displayName} 今日已簽到`;
+        } else {
+            alertText.innerText = `${event.displayName} 已簽到`;
+        }
+
+        /* 🔥 只渲染當前 user */
+        renderUserDates(
+            json.userDates,
+            event.avatar
+        );
+
+        /* 🔥 today avatar */
+        const todayCell =
+        document.getElementById("today-cell");
+
+        if(todayCell){
+
+            const old =
+            todayCell.querySelector("img");
+
+            if(old){
+                old.remove();
+            }
+
+            const img=document.createElement("img");
+
+            img.src = event.avatar;
+            img.className = "user-avatar";
+
+            todayCell.appendChild(img);
+
+            // Ensure the animation reliably starts by adding the
+            // animation class in the next animation frame.
+            requestAnimationFrame(() => {
+                img.classList.add("stamp-animation");
+                playSound();
+            });
+        }
+
+        setTimeout(()=>{
+
+            box.classList.remove("show");
+
+            resolve();
+
+        }, CONFIG.displaySeconds * 1000);
+
+    })
+    .catch(err=>{
+
+        console.log(err);
+
+        alertText.innerText =
+        "⚠️ API error";
+
+        resolve();
+    });
+
+});
+}
+
+/* ===================== TWITCH ===================== */
+function connect(){
+
+    const ws =
+    new WebSocket(
+        "wss://irc-ws.chat.twitch.tv:443"
+    );
+
+    ws.onopen=()=>{
+
+        ws.send("PASS SCHMOOPIE");
+
+        ws.send(
+            "NICK justinfan"+
+            Math.floor(Math.random()*99999)
+        );
+
+        ws.send(`JOIN #${CONFIG.channel}`);
+    };
+
+    ws.onmessage=(ev)=>{
+
+        const msgs =
+        ev.data.split("\r\n");
+
+        for(const msg of msgs){
+
+            if(!msg.includes("PRIVMSG"))
+                continue;
+
+            const u =
+            msg.match(/:([^!]+)!/);
+
+            if(!u) continue;
+
+            const username =
+            u[1].toLowerCase();
+
+            const display =
+            msg.match(
+                /display-name=([^;]*)/
+            )?.[1] || username;
+
+            const textMatch = msg.match(/PRIVMSG #[^ ]+ :(.*)$/);
+            const message = textMatch ? textMatch[1].trim() : "";
+            const isCheckCommand = COMMANDS.includes(message);
+
+            const nowInfo = getNowInfo();
+
+            enqueue({
+
+                username,
+
+                displayName:display,
+
+                avatar:
+                `https://unavatar.io/twitch/${username}`,
+
+                dateKey:
+                `${nowInfo.year}-${String(nowInfo.month+1).padStart(2,'0')}-${String(nowInfo.today).padStart(2,'0')}`,
+
+                forceShowCalendar: isCheckCommand
+            });
+        }
+    };
+
+    ws.onclose=()=>{
+
+        setTimeout(connect,3000);
+    };
+}
+
+async function initApp(){
+    await loadClientConfig();
+    await loadCommandConfig();
+
+    const init = getNowInfo();
+    rebuildCalendar(init.year, init.month, init.today);
+    connect();
+}
+
+initApp();
+
+</script>
+</body>
+</html>

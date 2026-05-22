@@ -1,0 +1,7 @@
+{
+  "channel": "longkey",
+  "displaySeconds": 6,
+  "dataUrl": "/calendar",
+  "apiWriteUrl": "/api/write-csv",
+  "style": "theme/default.css"
+}

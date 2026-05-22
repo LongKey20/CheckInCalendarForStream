@@ -1,0 +1,143 @@
+:root {
+    --bg-color: transparent;
+    --text-color: #ffffff;
+    --font-family: "Microsoft JhengHei", sans-serif;
+    --container-bg: rgba(15, 15, 15, 0.95);
+    --container-border: #a970ff;
+    --container-radius: 24px;
+    --container-padding: 40px;
+    --container-width: 900px;
+    --container-offset-right: 20px;
+    --container-offset-bottom: 20px;
+    --shadow-color: rgba(0, 0, 0, 0.25);
+    --alert-color: #00ffcc;
+    --header-color: #a970ff;
+    --day-name-color: #aaa;
+    --day-bg: rgba(255, 255, 255, 0.08);
+    --day-radius: 14px;
+    --day-height: 120px;
+    --day-number-size: 34px;
+    --day-number-weight: 700;
+    --day-name-size: 18px;
+    --alert-size: 28px;
+    --header-size: 40px;
+    --grid-gap: 12px;
+    --transition-duration: 0.4s;
+    --stamp-animation-delay: 1.5s;
+    --stamp-animation-duration: 1s;
+}
+
+body {
+    background: var(--bg-color);
+    margin: 0;
+    overflow: hidden;
+    font-family: var(--font-family);
+    width: 100vw;
+    height: 100vh;
+    color: var(--text-color);
+}
+
+/* ===================== */
+ .calendar-container {
+    width: 90vw;
+    max-width: var(--container-width);
+    height: 90vh;
+    max-height: 100%;
+    background: var(--container-bg);
+    border: 2px solid var(--container-border);
+    border-radius: var(--container-radius);
+    padding: var(--container-padding);
+
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition-duration);
+}
+
+.calendar-container.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.banner-alert {
+    text-align: center;
+    font-size: var(--alert-size);
+    color: var(--alert-color);
+    margin-bottom: 20px;
+}
+
+.calendar-header {
+    text-align: center;
+    font-size: var(--header-size);
+    margin-bottom: 20px;
+    color: var(--header-color);
+}
+
+.days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--grid-gap);
+}
+
+.day-name {
+    text-align: center;
+    color: var(--day-name-color);
+    font-size: var(--day-name-size);
+}
+
+.day {
+    background: var(--day-bg);
+    border-radius: var(--day-radius);
+    height: var(--day-height);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-avatar {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 999;
+}
+
+.day-number {
+    position: relative;
+    z-index: 1;
+    font-size: var(--day-number-size);
+    font-weight: var(--day-number-weight);
+}
+
+.empty-day {
+    height: var(--day-height);
+}
+
+@keyframes stampPop {
+    0% {
+        transform: scale(2) rotate(-15deg);
+        opacity: 0;
+    }
+
+    60% {
+        transform: scale(0.9) rotate(5deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+.stamp-animation {
+    opacity: 0;
+    animation: stampPop var(--stamp-animation-duration) ease var(--stamp-animation-delay) both;
+}
