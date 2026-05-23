@@ -1,5 +1,6 @@
 {
   "ShowCalendarCommand": [
     "!月曆"
-  ]
+  ],
+  "configVersion": "0.0.3"
 }

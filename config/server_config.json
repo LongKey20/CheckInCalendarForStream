@@ -2,5 +2,6 @@
   "host": "127.0.0.1",
   "port": 8000,
   "csvFolderPath": "csv",
-  "csvPrefix": ""
+  "csvPrefix": "",
+  "configVersion": "0.0.3"
 }

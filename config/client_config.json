@@ -3,5 +3,6 @@
   "displaySeconds": 6,
   "dataUrl": "/calendar",
   "apiWriteUrl": "/api/write-csv",
-  "style": "theme/default.css"
+  "style": "theme/default.css",
+  "configVersion": "0.0.3"
 }

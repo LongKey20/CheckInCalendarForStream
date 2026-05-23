@@ -1,5 +1,6 @@
 import http.server
 import json
+import os
 import sys
 from urllib.parse import urlparse
 from pathlib import Path
@@ -12,16 +13,187 @@ else:
     BUNDLE_DIR = ROOT_DIR
 
 CONFIG_PATH = ROOT_DIR / "config" / "server_config.json"
+CLIENT_CONFIG_PATH = ROOT_DIR / "config" / "client_config.json"
+COMMAND_CONFIG_PATH = ROOT_DIR / "config" / "command.json"
 HTML_PATH = BUNDLE_DIR / "TwitchCanlendar.html"
+CONFIG_VERSION = "0.0.3"
 DEFAULT_CONFIG = {
+    "configVersion": CONFIG_VERSION,
     "host": "127.0.0.1",
     "port": 8000,
     "csvFolderPath": "csv",
     "csvPrefix": ""
 }
+DEFAULT_CLIENT_CONFIG = {
+    "configVersion": CONFIG_VERSION,
+    "channel": "longkey",
+    "displaySeconds": 6,
+    "dataUrl": "/calendar",
+    "apiWriteUrl": "/api/write-csv",
+    "style": "theme/default.css"
+}
+DEFAULT_COMMAND_CONFIG = {
+    "configVersion": CONFIG_VERSION,
+    "ShowCalendarCommand": [
+        "!\u6708\u66c6"
+    ]
+}
+
+
+def write_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def read_json(path):
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return None
+
+    return data if isinstance(data, dict) else None
+
+
+def parse_config_version(value):
+    text = str(value or "0.0.0").strip()
+    parts = text.split(".")
+    numbers = []
+
+    for part in parts[:3]:
+        try:
+            numbers.append(int(part))
+        except ValueError:
+            numbers.append(0)
+
+    while len(numbers) < 3:
+        numbers.append(0)
+
+    return tuple(numbers)
+
+
+def is_version_less_than(current, target):
+    return parse_config_version(current) < parse_config_version(target)
+
+
+def run_version_migrations(data, migrations, previous_version):
+    changed = False
+
+    for target_version, migrate in migrations:
+        if is_version_less_than(previous_version, target_version):
+            changed = migrate(data) or changed
+
+    return changed
+
+
+def migrate_server_config(data, previous_version):
+    return run_version_migrations(data, [
+        # Add future server_config migrations here.
+        # Example:
+        # ("0.0.4", migrate_server_config_to_004),
+    ], previous_version)
+
+
+def migrate_client_config(data, previous_version):
+    changed = run_version_migrations(data, [
+        # Add future client_config migrations here.
+        # Example:
+        # ("0.0.4", migrate_client_config_to_004),
+    ], previous_version)
+
+    if not str(data.get("channel", "")).strip():
+        data["channel"] = prompt_for_twitch_channel()
+        changed = True
+
+    return changed
+
+
+def migrate_command_config(data, previous_version):
+    return run_version_migrations(data, [
+        # Add future command.json migrations here.
+        # Example:
+        # ("0.0.4", migrate_command_config_to_004),
+    ], previous_version)
+
+
+def merge_config_file(path, defaults, on_create=None, migrate=None):
+    if not path.exists():
+        data = defaults.copy()
+        if on_create:
+            on_create(data)
+        write_json(path, data)
+        return data
+
+    data = read_json(path)
+    if data is None:
+        print(f"Warning: {path} could not be read as a JSON object. Using defaults in memory.")
+        return defaults.copy()
+
+    changed = False
+    previous_version = data.get("configVersion", "0.0.0")
+
+    if migrate and migrate(data, previous_version):
+        changed = True
+
+    for key, value in defaults.items():
+        if key not in data:
+            data[key] = value
+            changed = True
+
+    if data.get("configVersion") != CONFIG_VERSION:
+        data["configVersion"] = CONFIG_VERSION
+        changed = True
+
+    if changed:
+        write_json(path, data)
+
+    return data
+
+
+def prompt_for_twitch_channel():
+    message = (
+        "Please enter your Twitch channel name.\n"
+        "This is the part of the URL after https://www.twitch.tv/{channel}, "
+        "for example: https://www.twitch.tv/longkey -> longkey\n"
+        "Twitch channel name: "
+    )
+
+    while True:
+        try:
+            channel = input(message).strip()
+        except EOFError:
+            return DEFAULT_CLIENT_CONFIG["channel"]
+
+        if channel:
+            return channel
+
+        print("Channel name is required. Please enter the Twitch channel name.")
+
+
+def ensure_config_files():
+    merge_config_file(
+        CONFIG_PATH,
+        DEFAULT_CONFIG,
+        migrate=migrate_server_config
+    )
+    merge_config_file(
+        CLIENT_CONFIG_PATH,
+        DEFAULT_CLIENT_CONFIG,
+        on_create=lambda data: data.update({"channel": prompt_for_twitch_channel()}),
+        migrate=migrate_client_config
+    )
+    merge_config_file(
+        COMMAND_CONFIG_PATH,
+        DEFAULT_COMMAND_CONFIG,
+        migrate=migrate_command_config
+    )
 
 
 def load_config():
+    ensure_config_files()
+
     if not CONFIG_PATH.exists():
         return DEFAULT_CONFIG.copy()
 
@@ -135,7 +307,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         return
 
 if __name__ == "__main__":
-    import os
     os.chdir(ROOT_DIR)
     server_address = (SERVER_CONFIG["host"], SERVER_CONFIG["port"])
     httpd = http.server.ThreadingHTTPServer(server_address, RequestHandler)
