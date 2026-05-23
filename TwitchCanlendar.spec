@@ -4,7 +4,10 @@ a = Analysis(
     ["server.py"],
     pathex=[],
     binaries=[],
-    datas=[("TwitchCanlendar.html", ".")],
+    datas=[
+        ("TwitchCanlendar.html", "."),
+        ("manifest.json", "."),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

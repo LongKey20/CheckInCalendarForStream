@@ -2,6 +2,11 @@ import http.server
 import json
 import os
 import sys
+import tempfile
+import urllib.error
+import urllib.request
+import zipfile
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 from pathlib import Path
 
@@ -16,7 +21,12 @@ CONFIG_PATH = ROOT_DIR / "config" / "server_config.json"
 CLIENT_CONFIG_PATH = ROOT_DIR / "config" / "client_config.json"
 COMMAND_CONFIG_PATH = ROOT_DIR / "config" / "command.json"
 HTML_PATH = BUNDLE_DIR / "TwitchCanlendar.html"
+MANIFEST_PATH = ROOT_DIR / "manifest.json"
+BUNDLED_MANIFEST_PATH = BUNDLE_DIR / "manifest.json"
+ASSETS_STAMP_PATH = ROOT_DIR / ".assets-installed.json"
 CONFIG_VERSION = "0.0.3"
+DOWNLOAD_USER_AGENT = "TwitchCanlendar"
+GITHUB_API_ACCEPT = "application/vnd.github+json"
 DEFAULT_CONFIG = {
     "configVersion": CONFIG_VERSION,
     "host": "127.0.0.1",
@@ -305,6 +315,264 @@ def wait_for_key(message):
         print()
 
 
+def resolve_manifest_path():
+    if MANIFEST_PATH.exists():
+        return MANIFEST_PATH
+    if BUNDLED_MANIFEST_PATH.exists():
+        return BUNDLED_MANIFEST_PATH
+    return None
+
+
+def load_manifest():
+    manifest_path = resolve_manifest_path()
+    if manifest_path is None:
+        return None
+
+    data = read_json(manifest_path)
+    if not isinstance(data, dict):
+        print(f"Warning: {manifest_path} is not a valid JSON object. Skipping asset download.")
+        return None
+
+    return data
+
+
+def normalize_release_tag(value):
+    text = str(value or "").strip()
+    if not text:
+        return f"v{CONFIG_VERSION}"
+    # If the tag already starts with "v" or is a custom format like "Version-X.X.X-Release",
+    # return it as-is instead of adding "v" prefix
+    if text.startswith("v") or text.startswith("Version"):
+        return text
+    return f"v{text}"
+
+
+def resolve_repository(manifest):
+    repository = str(manifest.get("repository") or "").strip().strip("/")
+    if not repository:
+        raise ValueError("manifest.json must define 'repository'.")
+    return repository
+
+
+def resolve_release_tag(manifest):
+    return normalize_release_tag(manifest.get("releaseTag") or CONFIG_VERSION)
+
+
+def resolve_asset_name(manifest, release_tag):
+    asset_name = str(manifest.get("assetName") or "").strip()
+    if asset_name:
+        return asset_name
+    version = release_tag.lstrip("v")
+    return f"TwitchCanlendar-assets-{version}.zip"
+
+
+def normalize_required_files(manifest):
+    required_files = manifest.get("requiredFiles")
+    if required_files is None:
+        required_files = manifest.get("files", [])
+
+    if not isinstance(required_files, list):
+        raise ValueError("manifest.json 'requiredFiles' must be an array.")
+
+    paths = []
+    for entry in required_files:
+        if isinstance(entry, str):
+            relative_path = entry.strip()
+            optional = False
+        elif isinstance(entry, dict):
+            relative_path = str(entry.get("path") or "").strip()
+            optional = bool(entry.get("optional"))
+        else:
+            raise ValueError("Each requiredFiles entry must be a string or object.")
+
+        if not relative_path:
+            raise ValueError("requiredFiles contains an empty path.")
+        if optional:
+            continue
+        paths.append(relative_path)
+
+    if not paths:
+        raise ValueError("manifest.json must list at least one required file.")
+
+    return paths
+
+
+def required_files_present(required_files):
+    for relative_path in required_files:
+        destination = ROOT_DIR / relative_path
+        if not destination.exists() or destination.stat().st_size <= 0:
+            return False
+    return True
+
+
+def read_assets_stamp():
+    data = read_json(ASSETS_STAMP_PATH)
+    return data if isinstance(data, dict) else None
+
+
+def write_assets_stamp(release_tag, asset_name, download_url):
+    write_json(ASSETS_STAMP_PATH, {
+        "releaseTag": release_tag,
+        "assetName": asset_name,
+        "downloadUrl": download_url,
+        "appVersion": CONFIG_VERSION,
+        "installedAt": datetime.now(timezone.utc).isoformat()
+    })
+
+
+def assets_install_is_current(manifest, release_tag, asset_name, required_files):
+    if not required_files_present(required_files):
+        return False
+
+    stamp = read_assets_stamp()
+    if stamp is None:
+        # If stamp file doesn't exist but all required files are present,
+        # assume assets are current to avoid unnecessary downloads
+        return True
+
+    return (
+        stamp.get("releaseTag") == release_tag and
+        stamp.get("assetName") == asset_name and
+        stamp.get("appVersion") == CONFIG_VERSION
+    )
+
+
+def github_api_request(url):
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": DOWNLOAD_USER_AGENT,
+            "Accept": GITHUB_API_ACCEPT
+        }
+    )
+
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def fetch_release_asset_url(repository, release_tag, asset_name):
+    api_url = f"https://api.github.com/repos/{repository}/releases/tags/{release_tag}"
+    release = github_api_request(api_url)
+
+    assets = release.get("assets")
+    if not isinstance(assets, list):
+        raise ValueError(f"Release '{release_tag}' has no downloadable assets.")
+
+    for asset in assets:
+        if asset.get("name") == asset_name:
+            download_url = asset.get("browser_download_url")
+            if download_url:
+                return download_url
+            break
+
+    available = ", ".join(
+        str(item.get("name"))
+        for item in assets
+        if isinstance(item, dict) and item.get("name")
+    )
+    hint = f" Available assets: {available}" if available else ""
+    raise ValueError(
+        f"Asset '{asset_name}' was not found in GitHub release '{release_tag}'.{hint}"
+    )
+
+
+def download_bytes(url):
+    request = urllib.request.Request(url, headers={"User-Agent": DOWNLOAD_USER_AGENT})
+
+    with urllib.request.urlopen(request, timeout=120) as response:
+        data = response.read()
+
+    if not data:
+        raise ValueError("Downloaded file is empty.")
+
+    return data
+
+
+def safe_extract_zip(zip_path, destination_dir):
+    destination_dir = destination_dir.resolve()
+
+    with zipfile.ZipFile(zip_path) as archive:
+        for member in archive.namelist():
+            if member.endswith("/"):
+                continue
+
+            target_path = (destination_dir / member).resolve()
+            if not str(target_path).startswith(str(destination_dir)):
+                raise ValueError(f"Unsafe path in asset zip: {member}")
+
+        archive.extractall(destination_dir)
+
+
+def install_assets_from_release(manifest):
+    manifest_version = str(manifest.get("manifestVersion") or "").strip()
+    if manifest_version != "2":
+        raise ValueError(
+            "Unsupported manifest.json version. Expected manifestVersion \"2\" for GitHub Release assets."
+        )
+
+    repository = resolve_repository(manifest)
+    release_tag = resolve_release_tag(manifest)
+    asset_name = resolve_asset_name(manifest, release_tag)
+    required_files = normalize_required_files(manifest)
+
+    if assets_install_is_current(manifest, release_tag, asset_name, required_files):
+        print(f"Assets already installed for {release_tag} ({asset_name}).")
+        return
+
+    download_url = fetch_release_asset_url(repository, release_tag, asset_name)
+    print(f"Downloading assets from GitHub Release {release_tag}...")
+    print(f"  {download_url}")
+
+    payload = download_bytes(download_url)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        zip_path = Path(temp_dir) / asset_name
+        zip_path.write_bytes(payload)
+        safe_extract_zip(zip_path, ROOT_DIR)
+
+    missing_files = [
+        relative_path
+        for relative_path in required_files
+        if not (ROOT_DIR / relative_path).exists()
+    ]
+    if missing_files:
+        raise ValueError(
+            "Asset zip was extracted, but required files are still missing: "
+            + ", ".join(missing_files)
+        )
+
+    write_assets_stamp(release_tag, asset_name, download_url)
+    print("Installed assets:")
+    for relative_path in required_files:
+        print(f"  - {relative_path}")
+
+
+def stop_with_asset_errors(errors):
+    red = "\033[31m"
+    reset = "\033[0m"
+    print(red)
+    print("Required assets could not be installed. The server was not started.")
+    for error in errors:
+        print(f"- {error}")
+    print()
+    print("Publish a GitHub Release with the matching asset zip, for example:")
+    print("  gh release create v0.0.3 dist/TwitchCanlendar.exe dist/CheckInCalendar-assets-0.0.3.zip")
+    print(reset)
+    wait_for_key("Press any key to close this window...")
+    sys.exit(1)
+
+
+def ensure_assets_from_manifest():
+    manifest = load_manifest()
+    if manifest is None:
+        stop_with_asset_errors(["manifest.json not found. Please ensure manifest.json exists in the application directory."])
+
+    try:
+        install_assets_from_release(manifest)
+    except Exception as exc:
+        stop_with_asset_errors([str(exc)])
+
+
 def load_config():
     ensure_config_files()
     validate_config_files()
@@ -343,10 +611,9 @@ def get_csv_file(date=None):
     return CSV_FOLDER / get_csv_filename(date)
 
 
-SERVER_CONFIG = load_config()
-CSV_FOLDER = resolve_csv_folder(SERVER_CONFIG["csvFolderPath"])
-CSV_PREFIX = SERVER_CONFIG["csvPrefix"]
-CSV_FOLDER.mkdir(parents=True, exist_ok=True)
+SERVER_CONFIG = None
+CSV_FOLDER = None
+CSV_PREFIX = ""
 
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -423,6 +690,12 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.chdir(ROOT_DIR)
+    ensure_assets_from_manifest()
+    SERVER_CONFIG = load_config()
+    CSV_FOLDER = resolve_csv_folder(SERVER_CONFIG["csvFolderPath"])
+    CSV_PREFIX = SERVER_CONFIG["csvPrefix"]
+    CSV_FOLDER.mkdir(parents=True, exist_ok=True)
+
     server_address = (SERVER_CONFIG["host"], SERVER_CONFIG["port"])
     httpd = http.server.ThreadingHTTPServer(server_address, RequestHandler)
     print(f"Serving HTTP on http://{server_address[0]}:{server_address[1]}")

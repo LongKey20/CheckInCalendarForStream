@@ -540,7 +540,6 @@ return new Promise((resolve)=>{
 
     const nowInfo = getNowInfo();
 
-    /* 🔥 跨月時重建月曆 */
     if(
         nowInfo.year !== currentYear ||
         nowInfo.month !== currentMonth ||
@@ -578,7 +577,6 @@ return new Promise((resolve)=>{
             alertText.innerText = `${event.displayName} 已簽到`;
         }
 
-        /* 🔥 只渲染當前 user；!簽到查狀態時不重播蓋章動畫 */
         const animateDateKey = json.signedToday ? null : event.dateKey;
         renderUserDates(
             json.userDates,

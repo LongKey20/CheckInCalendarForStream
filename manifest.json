@@ -1,0 +1,11 @@
+{
+  "manifestVersion": "2",
+  "repository": "LongKey20/CheckInCalendarForStream",
+  "releaseTag": "Version-0.0.3-Release",
+  "assetName": "CheckInCalendar-assets-0.0.3.zip",
+  "requiredFiles": [
+    "theme/default.css",
+    "audio/stamp.mp3",
+    "audio/README.md"
+  ]
+}
