@@ -35,8 +35,9 @@
 
 /* ===================== CONFIG ===================== */
 const CONFIG = {
-    channel: "longkey",
+    channel: "",
     displaySeconds: 6,
+    timeZone: "Asia/Tokyo",
     dataUrl: "/calendar",
     apiWriteUrl: "/api/write-csv",
     style: "theme/default.css"
@@ -106,6 +107,7 @@ const queue = [];
 
 let currentYear = null;
 let currentMonth = null;
+let currentToday = null;
 
 /* ===================== DOM ===================== */
 const box = document.getElementById("calendarBox");
@@ -210,9 +212,30 @@ function stringifyCsv(rows){
         }).join(",")).join("\r\n");
 }
 
-function formatTokyoTimestamp(date){
+function getConfiguredTimeZone(){
+    const timeZone = String(CONFIG.timeZone || "").trim();
+    return timeZone || "Asia/Tokyo";
+}
+
+function getDateTimeParts(date, locale, options){
+    const timeZone = getConfiguredTimeZone();
+
+    try {
+        return new Intl.DateTimeFormat(locale, {
+            ...options,
+            timeZone
+        }).formatToParts(date);
+    } catch (err) {
+        console.warn(`Invalid timeZone "${timeZone}". Falling back to Asia/Tokyo.`, err);
+        return new Intl.DateTimeFormat(locale, {
+            ...options,
+            timeZone: "Asia/Tokyo"
+        }).formatToParts(date);
+    }
+}
+
+function formatConfiguredTimestamp(date){
     const opts = {
-        timeZone: "Asia/Tokyo",
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -221,7 +244,7 @@ function formatTokyoTimestamp(date){
         second: "2-digit",
         hour12: false
     };
-    const parts = new Intl.DateTimeFormat("en-GB", opts).formatToParts(date);
+    const parts = getDateTimeParts(date, "en-GB", opts);
     const map = {};
     for(const part of parts){
         if(part.type !== "literal"){
@@ -291,7 +314,7 @@ async function localRequest(event){
     }
 
     const isFirst = !hasAnyToday;
-    const timestamp = formatTokyoTimestamp(new Date());
+    const timestamp = formatConfiguredTimestamp(new Date());
 
     data.push([
         dateStr,
@@ -317,12 +340,11 @@ async function localRequest(event){
 function getNowInfo(){
 
     const opts = {
-        timeZone: "Asia/Tokyo",
         year: "numeric",
         month: "2-digit",
         day: "2-digit"
     };
-    const parts = new Intl.DateTimeFormat("en-CA", opts).formatToParts(new Date());
+    const parts = getDateTimeParts(new Date(), "en-CA", opts);
     const map = {};
     for(const part of parts){
         if(part.type !== "literal"){
@@ -344,6 +366,7 @@ function rebuildCalendar(year, month, today){
 
     currentYear = year;
     currentMonth = month;
+    currentToday = today;
 
     grid.innerHTML = `
         <div class="day-name">日</div>
@@ -503,7 +526,8 @@ return new Promise((resolve)=>{
     /* 🔥 跨月時重建月曆 */
     if(
         nowInfo.year !== currentYear ||
-        nowInfo.month !== currentMonth
+        nowInfo.month !== currentMonth ||
+        nowInfo.today !== currentToday
     ){
         rebuildCalendar(
             nowInfo.year,

@@ -26,8 +26,9 @@ DEFAULT_CONFIG = {
 }
 DEFAULT_CLIENT_CONFIG = {
     "configVersion": CONFIG_VERSION,
-    "channel": "longkey",
+    "channel": "",
     "displaySeconds": 6,
+    "timeZone": "Asia/Tokyo",
     "dataUrl": "/calendar",
     "apiWriteUrl": "/api/write-csv",
     "style": "theme/default.css"
@@ -103,8 +104,8 @@ def migrate_client_config(data, previous_version):
         # ("0.0.4", migrate_client_config_to_004),
     ], previous_version)
 
-    if not str(data.get("channel", "")).strip():
-        data["channel"] = prompt_for_twitch_channel()
+    if "timeZoneHelp" in data:
+        del data["timeZoneHelp"]
         changed = True
 
     return changed
@@ -164,7 +165,7 @@ def prompt_for_twitch_channel():
         try:
             channel = input(message).strip()
         except EOFError:
-            return DEFAULT_CLIENT_CONFIG["channel"]
+            return ""
 
         if channel:
             return channel
@@ -191,8 +192,122 @@ def ensure_config_files():
     )
 
 
+def is_blank(value):
+    return str(value or "").strip() == ""
+
+
+def require_value(errors, config_name, data, key, help_text):
+    if is_blank(data.get(key)):
+        errors.append(f"{config_name}: '{key}' is required. {help_text}")
+
+
+def require_warning(warnings, config_name, data, key, help_text):
+    if is_blank(data.get(key)):
+        warnings.append(f"{config_name}: '{key}' is empty. {help_text}")
+
+
+def validate_config_files():
+    errors = []
+    warnings = []
+
+    server_config = read_json(CONFIG_PATH)
+    client_config = read_json(CLIENT_CONFIG_PATH)
+    command_config = read_json(COMMAND_CONFIG_PATH)
+
+    if server_config is None:
+        errors.append("config/server_config.json must be a valid JSON object.")
+    else:
+        require_value(errors, "config/server_config.json", server_config, "host", "Example: 127.0.0.1")
+        require_value(errors, "config/server_config.json", server_config, "csvFolderPath", "Example: csv")
+
+        try:
+            port = int(server_config.get("port"))
+            if not 1 <= port <= 65535:
+                raise ValueError
+        except (TypeError, ValueError):
+            errors.append("config/server_config.json: 'port' must be a number from 1 to 65535. Example: 8000")
+
+    if client_config is None:
+        errors.append("config/client_config.json must be a valid JSON object.")
+    else:
+        require_warning(
+            warnings,
+            "config/client_config.json",
+            client_config,
+            "channel",
+            "Enter your Twitch channel name. It is the part after https://www.twitch.tv/{channel}."
+        )
+        require_value(
+            errors,
+            "config/client_config.json",
+            client_config,
+            "timeZone",
+            "Enter an IANA time zone name. Examples: Asia/Tokyo, Asia/Taipei, America/New_York."
+        )
+        require_value(errors, "config/client_config.json", client_config, "dataUrl", "Example: /calendar")
+        require_value(errors, "config/client_config.json", client_config, "apiWriteUrl", "Example: /api/write-csv")
+
+        try:
+            display_seconds = float(client_config.get("displaySeconds"))
+            if display_seconds <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            errors.append("config/client_config.json: 'displaySeconds' must be a positive number. Example: 6")
+
+    if command_config is None:
+        errors.append("config/command.json must be a valid JSON object.")
+    elif not isinstance(command_config.get("ShowCalendarCommand"), list):
+        errors.append("config/command.json: 'ShowCalendarCommand' must be an array. Example: [\"!月曆\"]")
+
+    if errors or warnings:
+        stop_with_config_messages(errors, warnings)
+
+
+def stop_with_config_messages(errors, warnings):
+    red = "\033[31m"
+    reset = "\033[0m"
+
+    print(red)
+    print("Config warning/error. The server was not started.")
+    print("Please fix the following config values and start TwitchCanlendar again:")
+    print()
+
+    for warning in warnings:
+        print(f"- Warning: {warning}")
+
+    for error in errors:
+        print(f"- Error: {error}")
+
+    print(reset)
+    wait_for_key("Press any key to close this window...")
+    sys.exit(1)
+
+
+def wait_for_key(message):
+    print(message, end="", flush=True)
+
+    if not sys.stdin.isatty():
+        print()
+        return
+
+    if os.name == "nt":
+        try:
+            import msvcrt
+            msvcrt.getch()
+            print()
+            return
+        except Exception:
+            pass
+
+    try:
+        input()
+    except EOFError:
+        print()
+
+
 def load_config():
     ensure_config_files()
+    validate_config_files()
 
     if not CONFIG_PATH.exists():
         return DEFAULT_CONFIG.copy()
