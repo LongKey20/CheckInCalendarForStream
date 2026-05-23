@@ -402,7 +402,31 @@ function playSound(){
 
     audio.currentTime = 0;
 
-    audio.play().catch(()=>{});
+    audio.play().catch(err => {
+        console.warn("Stamp sound was blocked or failed to play.", err);
+    });
+}
+
+function parseCssTime(value){
+    const text = String(value || "").trim();
+    const match = text.match(/^(-?\d+(?:\.\d+)?)(ms|s)$/);
+    if(!match) return 0;
+
+    const amount = Number(match[1]);
+    return match[2] === "s" ? amount * 1000 : amount;
+}
+
+function setupStampSound(){
+    document.addEventListener("animationstart", event => {
+        if(
+            event.animationName === "stampPop" &&
+            event.target.classList.contains("stamp-animation")
+        ){
+            const style = getComputedStyle(event.target);
+            const delay = parseCssTime(style.getPropertyValue("--stamp-sound-delay"));
+            setTimeout(playSound, delay);
+        }
+    });
 }
 
 /* ===================== QUEUE ===================== */
@@ -543,7 +567,6 @@ return new Promise((resolve)=>{
             // animation class in the next animation frame.
             requestAnimationFrame(() => {
                 img.classList.add("stamp-animation");
-                playSound();
             });
         }
 
@@ -642,6 +665,7 @@ function connect(){
 }
 
 async function initApp(){
+    setupStampSound();
     await loadClientConfig();
     await loadCommandConfig();
 

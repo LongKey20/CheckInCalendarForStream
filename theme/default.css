@@ -25,6 +25,7 @@
     --transition-duration: 0.4s;
     --stamp-animation-delay: 1.5s;
     --stamp-animation-duration: 1s;
+    --stamp-sound-delay: 0.6s;
 }
 
 body {
