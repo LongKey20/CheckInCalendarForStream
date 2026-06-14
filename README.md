@@ -78,6 +78,22 @@ For more available time zones, see:
 
 https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
+### Theme / 主題
+
+`client_config.json` 的 `style` 欄位指定主題，可更換其他主題。
+
+The `style` field in `client_config.json` can select the theme of the calendar.
+
+### Command / 指令
+
+`command.json` 內可自行設置觸發指令的文字。
+
+You can set the trigger of the command in `command.json`.
+
+1. ShowCalendarCommand:
+   顯示月曆
+   Show Calendar
+
 ## ⚖️ License & Third-Party Assets / 開源授權與第三方素材
 
 ### Code License / 程式碼授權
