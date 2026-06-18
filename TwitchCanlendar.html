@@ -43,7 +43,7 @@ const CONFIG = {
     style: "theme/default.css"
 };
 
-const COMMANDS = ["!簽到"];
+const COMMANDS = ["!月曆", "!Calendar"];
 
 async function loadClientConfig(){
     try {
@@ -101,6 +101,55 @@ const CSV_HEADERS = [
     "isFirst"
 ];
 
+/* ===================== COMMAND PARSER ===================== */
+function tryParseCommandAndDate(message){
+    // Supported formats: !月曆, !月曆2026-06, !月曆 2026-06, !月曆 2026/6
+    const text = String(message || "").trim();
+    if(!text){
+        return { isCommand: false, dateOverride: null };
+    }
+
+    const normalizedText = text.toLowerCase();
+    const command = COMMANDS
+        .map(cmd => String(cmd || "").trim())
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length)
+        .find(cmd => normalizedText.startsWith(cmd.toLowerCase()));
+
+    if(!command){
+        return { isCommand: false, dateOverride: null };
+    }
+
+    const dateArg = text.substring(command.length).trim();
+    if(!dateArg){
+        return { isCommand: true, dateOverride: null };
+    }
+
+    const dateMatch = dateArg.match(/^(\d{4})[-/](\d{1,2})$/);
+    if(!dateMatch){
+        return { isCommand: true, dateOverride: null };
+    }
+
+    const year = Number(dateMatch[1]);
+    const month = Number(dateMatch[2]) - 1;
+    if(year >= 2000 && year <= 2099 && month >= 0 && month <= 11){
+        return { isCommand: true, dateOverride: { year, month } };
+    }
+    
+    return { isCommand: true, dateOverride: null };
+}
+
+function getDateInfo(dateOverride){
+    if(dateOverride){
+        return {
+            year: dateOverride.year,
+            month: dateOverride.month,
+            today: null
+        };
+    }
+    return getNowInfo();
+}
+
 /* ===================== STATE ===================== */
 const queue = [];
 
@@ -114,9 +163,20 @@ const grid = document.getElementById("daysGrid");
 const alertText = document.getElementById("alertText");
 
 /* ===================== CSV HELPERS ===================== */
-async function readLocalCsv(){
+async function readLocalCsv(dateOverride){
+    let url = CONFIG.dataUrl;
+    
+    // If dateOverride is provided, append query parameters
+    if(dateOverride){
+        const params = new URLSearchParams({
+            year: dateOverride.year,
+            month: String(dateOverride.month + 1) // Convert back to 1-indexed
+        });
+        url = `${CONFIG.dataUrl}?${params.toString()}`;
+    }
+    
     try {
-        const response = await fetch(CONFIG.dataUrl, { cache: "no-store" });
+        const response = await fetch(url, { cache: "no-store" });
         if (!response.ok) {
             throw new Error(`${response.status} ${response.statusText}`);
         }
@@ -257,7 +317,10 @@ async function localRequest(event){
     const dateStr = event.dateKey;
     const username = event.username;
     const displayName = event.displayName;
-    const rows = await readLocalCsv();
+    const isViewingHistoricalMonth = !!event.dateOverride; // True if viewing a specific month other than current
+    const isCommand = event.isCommand; // True if this is a command (show calendar only, don't sign in)
+    
+    const rows = await readLocalCsv(event.dateOverride);
     const data = rows.length ? rows : [CSV_HEADERS];
 
     let hasAnyToday = false;
@@ -296,6 +359,29 @@ async function localRequest(event){
         };
     }
 
+    // If viewing historical/future month, only show calendar, don't allow sign-in
+    if(isViewingHistoricalMonth){
+        return {
+            success: true,
+            showCalendar: true,
+            isFirst: false,
+            userDates,
+            signedToday: false
+        };
+    }
+
+    // If this is a command (show calendar only, don't sign in)
+    if(isCommand){
+        return {
+            success: true,
+            showCalendar: true,
+            isFirst: false,
+            userDates,
+            signedToday: alreadyUserToday
+        };
+    }
+
+    // Below: regular sign-in logic (not a command)
     if(alreadyUserToday){
         if(event.forceShowCalendar){
             return {
@@ -457,11 +543,11 @@ function setupStampSound(){
 /* ===================== QUEUE ===================== */
 function enqueue(event){
 
-    const nowInfo = getNowInfo();
+    const dateInfo = getDateInfo(event.dateOverride);
 
-    event.uiYear = nowInfo.year;
-    event.uiMonth = nowInfo.month;
-    event.uiToday = nowInfo.today;
+    event.uiYear = dateInfo.year;
+    event.uiMonth = dateInfo.month;
+    event.uiToday = dateInfo.today;
 
     queue.push(event);
 
@@ -470,14 +556,28 @@ function enqueue(event){
     }
 }
 
+function shouldRebuildCalendar(event){
+    if(event.isCommand){
+        return true;
+    }
+
+    return (
+        event.uiYear !== currentYear ||
+        event.uiMonth !== currentMonth ||
+        event.uiToday !== currentToday
+    );
+}
+
 function process(){
 
     if(queue.length===0) return;
 
-    showEvent(queue[0]).then(()=>{
-
+    showEvent(queue[0])
+    .catch(err => {
+        console.error("Calendar event failed:", err);
+    })
+    .finally(()=>{
         queue.shift();
-
         process();
     });
 }
@@ -538,17 +638,15 @@ function showEvent(event){
 
 return new Promise((resolve)=>{
 
-    const nowInfo = getNowInfo();
+    const targetYear = event.uiYear;
+    const targetMonth = event.uiMonth;
+    const targetToday = event.uiToday;
 
-    if(
-        nowInfo.year !== currentYear ||
-        nowInfo.month !== currentMonth ||
-        nowInfo.today !== currentToday
-    ){
+    if(shouldRebuildCalendar(event)){
         rebuildCalendar(
-            nowInfo.year,
-            nowInfo.month,
-            nowInfo.today
+            targetYear,
+            targetMonth,
+            targetToday
         );
     }
 
@@ -569,7 +667,10 @@ return new Promise((resolve)=>{
 
         box.classList.add("show");
 
-        if(json.isFirst){
+        if(event.dateOverride){
+            alertText.innerText =
+            `${event.displayName} 的 ${event.uiYear}-${String(event.uiMonth+1).padStart(2,'0')} 簽到月曆`;
+        } else if(json.isFirst){
             alertText.innerText = `👑 ${event.displayName} 搶到頭香！`;
         } else if(json.signedToday){
             alertText.innerText = `${event.displayName} 今日已簽到`;
@@ -651,9 +752,14 @@ function connect(){
 
             const textMatch = msg.match(/PRIVMSG #[^ ]+ :(.*)$/);
             const message = textMatch ? textMatch[1].trim() : "";
-            const isCheckCommand = COMMANDS.includes(message);
+            const commandInfo = tryParseCommandAndDate(message);
+            const isCheckCommand = commandInfo.isCommand;
 
-            const nowInfo = getNowInfo();
+            if(isCheckCommand){
+                console.log("Calendar command parsed:", message, commandInfo);
+            }
+
+            const dateInfo = getDateInfo(commandInfo.dateOverride);
 
             enqueue({
 
@@ -665,7 +771,13 @@ function connect(){
                 `https://unavatar.io/twitch/${username}`,
 
                 dateKey:
-                `${nowInfo.year}-${String(nowInfo.month+1).padStart(2,'0')}-${String(nowInfo.today).padStart(2,'0')}`,
+                dateInfo.today
+                    ? `${dateInfo.year}-${String(dateInfo.month+1).padStart(2,'0')}-${String(dateInfo.today).padStart(2,'0')}`
+                    : null,
+
+                dateOverride: commandInfo.dateOverride,
+
+                isCommand: commandInfo.isCommand,
 
                 forceShowCalendar: isCheckCommand
             });

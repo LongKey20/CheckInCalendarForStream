@@ -24,7 +24,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="TwitchCanlendar",
+    name="TwitchCanlendar-v1.0.1",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

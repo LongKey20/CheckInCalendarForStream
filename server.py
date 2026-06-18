@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import http.server
 import json
 import os
@@ -7,8 +8,12 @@ import urllib.error
 import urllib.request
 import zipfile
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from pathlib import Path
+
+# Ensure UTF-8 encoding for file operations on Windows
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
 if getattr(sys, "frozen", False):
     ROOT_DIR = Path(sys.executable).resolve().parent
@@ -594,6 +599,17 @@ def load_config():
     }
 
 
+def initialize_csv_file_if_needed(csv_path):
+    """Create CSV file with headers if it doesn't exist."""
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    if not csv_path.exists() or csv_path.stat().st_size <= 0:
+        # CSV headers matching the frontend schema
+        headers = "date,username,displayName,timestamp,isFirst"
+        csv_path.write_text(headers, encoding="utf-8")
+        print(f"Initialized CSV file: {csv_path}")
+
+
 def resolve_csv_folder(value):
     path = Path(value)
     if path.is_absolute():
@@ -616,6 +632,135 @@ CSV_FOLDER = None
 CSV_PREFIX = ""
 
 
+def parse_csv_rows(csv_text):
+    """Parse CSV text into rows, handling quoted fields."""
+    rows = []
+    current = []
+    field = ""
+    in_quotes = False
+
+    for ch in csv_text:
+        if ch == '"':
+            if in_quotes and field and field[-1:] != '"':
+                in_quotes = False
+            else:
+                in_quotes = True
+            field += ch
+        elif ch == ',' and not in_quotes:
+            current.append(field)
+            field = ""
+        elif ch == '\n' and not in_quotes:
+            if field or current:
+                current.append(field)
+                rows.append(current)
+                current = []
+                field = ""
+        else:
+            field += ch
+
+    if current or field:
+        current.append(field)
+        if current:
+            rows.append(current)
+
+    return rows
+
+
+def group_csv_rows_by_month(rows):
+    """Group CSV rows by year-month based on date column (first column)."""
+    from collections import defaultdict
+    
+    month_groups = defaultdict(list)
+    headers = None
+    
+    for i, row in enumerate(rows):
+        if i == 0:
+            # Headers row
+            headers = row
+            continue
+        
+        if not row or not row[0].strip():
+            continue
+        
+        # Extract date from first column (format: YYYY-MM-DD)
+        date_str = row[0].strip()
+        if '-' not in date_str or len(date_str) < 7:
+            continue
+        
+        try:
+            year_month = date_str[:7]  # YYYY-MM
+            month_groups[year_month].append(row)
+        except (IndexError, ValueError):
+            continue
+    
+    return headers, month_groups
+
+
+def merge_csv_with_file(file_path, new_rows):
+    """Merge new rows with existing CSV file, avoiding duplicates."""
+    # Read existing rows
+    existing_rows = []
+    if file_path.exists():
+        try:
+            existing_text = file_path.read_text(encoding="utf-8")
+            existing_rows = parse_csv_rows(existing_text)
+            if existing_rows:
+                existing_rows = existing_rows[1:]  # Skip header
+        except Exception:
+            pass
+    
+    # Create a set of existing (date, username) pairs to detect duplicates
+    existing_keys = set()
+    for row in existing_rows:
+        if len(row) >= 2:
+            # Key is (date, username)
+            key = (row[0].strip(), row[1].strip())
+            existing_keys.add(key)
+    
+    # Add only new rows
+    merged_rows = list(existing_rows)
+    for new_row in new_rows:
+        if len(new_row) >= 2:
+            key = (new_row[0].strip(), new_row[1].strip())
+            if key not in existing_keys:
+                merged_rows.append(new_row)
+    
+    return merged_rows
+
+
+def save_csv_rows_to_files(headers, month_groups, csv_folder, csv_prefix):
+    """Save grouped CSV rows to corresponding month files."""
+    if not headers:
+        return
+    
+    header_text = ",".join(headers)
+    
+    for year_month, rows in month_groups.items():
+        file_name = f"{csv_prefix}{year_month}.csv"
+        file_path = csv_folder / file_name
+        
+        # Merge with existing file
+        all_rows = merge_csv_with_file(file_path, rows)
+        
+        # Format and write
+        csv_folder.mkdir(parents=True, exist_ok=True)
+        file_lines = [header_text]
+        for row in all_rows:
+            # Properly quote fields that contain commas, quotes, or newlines
+            formatted_row = []
+            for field in row:
+                field_str = str(field or "")
+                if "," in field_str or '"' in field_str or "\n" in field_str:
+                    escaped = field_str.replace('"', '""')
+                    field_str = f'"{escaped}"'
+                formatted_row.append(field_str)
+            file_lines.append(",".join(formatted_row))
+        
+        file_content = "\r\n".join(file_lines)
+        file_path.write_text(file_content, encoding="utf-8")
+        print(f"CSV saved: {file_path}")
+
+
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def send_html(self):
         try:
@@ -635,20 +780,44 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return self.send_html()
 
         if request_path == "/calendar":
-            target_path = get_csv_file()
+            # Support optional query parameters for specific year/month
+            # Examples: /calendar, /calendar?year=2026&month=6, /calendar?year=2026&month=06
+            query_params = {}
+            parsed_url = urlparse(self.path)
+            if parsed_url.query:
+                params = parse_qs(parsed_url.query)
+                if 'year' in params and 'month' in params:
+                    try:
+                        year = int(params['year'][0])
+                        month = int(params['month'][0])
+                        if 1 <= month <= 12 and 2000 <= year <= 2099:
+                            query_params['year'] = year
+                            query_params['month'] = month
+                    except (ValueError, IndexError):
+                        pass
+            
+            # If query parameters are provided, use them; otherwise use current date
+            if query_params:
+                target_path = CSV_FOLDER / f"{CSV_PREFIX}{query_params['year']}-{query_params['month']:02d}.csv"
+            else:
+                target_path = get_csv_file()
+            
+            # If CSV file doesn't exist, return header-only CSV (empty sign-in records)
             if not target_path.exists():
-                self.send_error(404, "CSV file not found")
-                return
+                csv_header = "date,username,displayName,timestamp,isFirst"
+                data = csv_header.encode("utf-8")
+            else:
+                try:
+                    data = target_path.read_text(encoding="utf-8").encode("utf-8")
+                except Exception as e:
+                    self.send_error(500, str(e))
+                    return
 
-            try:
-                data = target_path.read_text(encoding="utf-8")
-                self.send_response(200)
-                self.send_header("Content-Type", "text/csv; charset=utf-8")
-                self.send_header("Content-Length", str(len(data.encode("utf-8"))))
-                self.end_headers()
-                self.wfile.write(data.encode("utf-8"))
-            except Exception as e:
-                self.send_error(500, str(e))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
             return
 
         return super().do_GET()
@@ -664,43 +833,164 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         try:
             payload = json.loads(body.decode("utf-8"))
             csv_text = payload.get("csv")
-            target_path = get_csv_file()
 
             if not isinstance(csv_text, str):
                 raise ValueError("Missing csv content")
 
-            # Normalize newlines and remove empty lines before writing.
+            # Normalize newlines and remove empty lines
             normalized = csv_text.replace("\r\n", "\n").replace("\r", "\n")
             lines = [line for line in normalized.split("\n") if line.strip() != ""]
             cleaned_text = "\r\n".join(lines)
+            
+            # Parse CSV and group by month
+            rows = parse_csv_rows(cleaned_text)
+            if not rows or len(rows) < 2:
+                raise ValueError("CSV must contain header and at least one data row")
+            
+            headers, month_groups = group_csv_rows_by_month(rows)
+            if not headers:
+                raise ValueError("Invalid CSV format: missing headers")
+            
+            # Save to appropriate month files
+            save_csv_rows_to_files(headers, month_groups, CSV_FOLDER, CSV_PREFIX)
 
-            target_path.write_bytes(cleaned_text.encode("utf-8"))
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"success": True}).encode("utf-8"))
         except Exception as e:
+            error_msg = str(e)
+            print(f"CSV save error: {error_msg}")
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode("utf-8"))
+            self.wfile.write(json.dumps({"success": False, "error": error_msg}).encode("utf-8"))
 
     def log_message(self, format, *args):
-        return
+        # Log important messages (errors and POST requests)
+        message = format % args
+        if "POST" in message or "400" in message or "500" in message:
+            print(f"[{self.log_date_time_string()}] {self.client_address[0]} - {message}")
+
+
+def parse_csv_rows(csv_text):
+    """Parse CSV text into rows, handling quoted fields."""
+    rows = []
+    current = []
+    field = ""
+    in_quotes = False
+
+    for ch in csv_text:
+        if ch == '"':
+            if in_quotes and field and field[-1:] != '"':
+                in_quotes = False
+            else:
+                in_quotes = True
+            field += ch
+        elif ch == ',' and not in_quotes:
+            current.append(field)
+            field = ""
+        elif ch == '\n' and not in_quotes:
+            if field or current:
+                current.append(field)
+                rows.append(current)
+                current = []
+                field = ""
+        else:
+            field += ch
+
+    if current or field:
+        current.append(field)
+        if current:
+            rows.append(current)
+
+    return rows
+
+
+def group_csv_rows_by_month(rows):
+    """Group CSV rows by year-month based on date column (first column)."""
+    from collections import defaultdict
+    
+    month_groups = defaultdict(list)
+    headers = None
+    
+    for i, row in enumerate(rows):
+        if i == 0:
+            # Headers row
+            headers = row
+            continue
+        
+        if not row or not row[0].strip():
+            continue
+        
+        # Extract date from first column (format: YYYY-MM-DD)
+        date_str = row[0].strip()
+        if '-' not in date_str or len(date_str) < 7:
+            continue
+        
+        try:
+            year_month = date_str[:7]  # YYYY-MM
+            month_groups[year_month].append(row)
+        except (IndexError, ValueError):
+            continue
+    
+    return headers, month_groups
+
+
+def merge_csv_with_file(file_path, new_rows):
+    """Merge new rows with existing CSV file, avoiding duplicates."""
+    # Read existing rows
+    existing_rows = []
+    if file_path.exists():
+        try:
+            existing_text = file_path.read_text(encoding="utf-8")
+            existing_rows = parse_csv_rows(existing_text)
+            if existing_rows:
+                existing_rows = existing_rows[1:]  # Skip header
+        except Exception:
+            pass
+    
+    # Create a set of existing (date, username) pairs to detect duplicates
+    existing_keys = set()
+    for row in existing_rows:
+        if len(row) >= 2:
+            # Key is (date, username)
+            key = (row[0].strip(), row[1].strip())
+            existing_keys.add(key)
+    
+    # Add only new rows
+    merged_rows = list(existing_rows)
+    for new_row in new_rows:
+        if len(new_row) >= 2:
+            key = (new_row[0].strip(), new_row[1].strip())
+            if key not in existing_keys:
+                merged_rows.append(new_row)
+    
+    return merged_rows
+
 
 if __name__ == "__main__":
-    os.chdir(ROOT_DIR)
+    try:
+        os.chdir(ROOT_DIR)
+    except OSError:
+        # If os.chdir fails (e.g., due to Chinese characters in path),
+        # continue anyway as we use absolute paths via ROOT_DIR
+        pass
     ensure_assets_from_manifest()
     SERVER_CONFIG = load_config()
     CSV_FOLDER = resolve_csv_folder(SERVER_CONFIG["csvFolderPath"])
     CSV_PREFIX = SERVER_CONFIG["csvPrefix"]
     CSV_FOLDER.mkdir(parents=True, exist_ok=True)
+    
+    # Initialize CSV file with headers if needed
+    csv_file = get_csv_file()
+    initialize_csv_file_if_needed(csv_file)
 
     server_address = (SERVER_CONFIG["host"], SERVER_CONFIG["port"])
     httpd = http.server.ThreadingHTTPServer(server_address, RequestHandler)
     print(f"Serving HTTP on http://{server_address[0]}:{server_address[1]}")
     print(f"CSV folder: {CSV_FOLDER}")
-    print(f"Current CSV file: {get_csv_file()}")
+    print(f"Current CSV file: {csv_file}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
