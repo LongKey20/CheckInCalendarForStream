@@ -3,6 +3,9 @@
 Let streamers show a check-in calendar for their audience.  
 讓實況主能為他們的觀眾展示簽到日曆。
 
+## Download 下載
+https://github.com/LongKey20/CheckInCalendarForStream/releases/tag/Version-0.0.3-Release-Zip
+
 ## Installation/How to use 安裝/使用方法
 ### 安裝方法
 1. 在Release中下載TwitchCanlendar-{版本號}.exe的檔案
