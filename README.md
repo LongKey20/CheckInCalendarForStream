@@ -6,6 +6,9 @@ StreamerTool is a Windows tool for streamers. It provides queue management and a
 
 StreamerTool は配信者向けの Windows ツールです。キュー管理とチェックインカレンダー機能を提供します。現在は Twitch チャットに対応しており、将来的には YouTube などのプラットフォームにも拡張できます。
 
+## 下載 / Download / ダウンロード
+StreamerTool　V2.0.1　https://github.com/LongKey20/StreamerTool/releases/tag/Version-2.0.1-Release
+
 ## 功能 / Features / 機能
 
 ### 中文
