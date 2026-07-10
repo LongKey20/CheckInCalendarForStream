@@ -18,7 +18,7 @@
     --day-number-weight: 700;
     --day-name-color: #ffffff;
     --day-name-size: clamp(16px, 3vmin, 30px);
-    --alert-size: clamp(16px, 2.6vmin, 28px);
+    --alert-size: clamp(20px, 3.2vmin, 34px);
     --header-size: clamp(22px, 4vmin, 40px);
     --grid-gap: clamp(4px, 1.1vmin, 12px);
     --content-gap: clamp(8px, 1.8vmin, 20px);

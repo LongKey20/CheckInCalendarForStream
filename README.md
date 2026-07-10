@@ -1,132 +1,546 @@
-# CheckInCalendarForStream
+# StreamerTool v2.0.1
 
-Let streamers show a check-in calendar for their audience.  
-讓實況主能為他們的觀眾展示簽到日曆。
+StreamerTool 是給實況主使用的 Windows 工具，提供隊列管理與簽到月曆功能。目前支援 Twitch 聊天室，未來可擴充到 YouTube 等平台。
 
-## Download 下載
-[Version-1.0.0](https://github.com/LongKey20/CheckInCalendarForStream/releases/tag/Version-1.0.0-Release)
+StreamerTool is a Windows tool for streamers. It provides queue management and a check-in calendar. Twitch chat is currently supported, with room for future platform support such as YouTube.
 
-## Installation/How to use 安裝/使用方法
-### 安裝方法
-1. 在Release中下載TwitchCanlendar-{版本號}.exe的檔案
-2. 放到你想要的位置
-3. 執行TwitchCanlendar-{版本號}.exe
-4. 根據要求輸入你Twitch 頻道的名稱, 通常為你的頻道URL: https://www.twitch.tv/{channel} 的channel部份。設定檔會自動保存在config/目錄下, 如有需要可手動編輯
-5. 關閉程式(也可不關閉, 直接使用)
-6. 在OBS中新增來源瀏覽器
-7. 網址輸入http://127.0.0.1:8000 (預設), 寬高可自由設定, 若使用預設theme, 建議比例為1比1
-8. 把新生成的來源移動/調整到你想要的大小即可
-完成
+StreamerTool は配信者向けの Windows ツールです。キュー管理とチェックインカレンダー機能を提供します。現在は Twitch チャットに対応しており、将来的には YouTube などのプラットフォームにも拡張できます。
 
-### Installation
-1. Download the TwitchCanlendar-{version}.exe file in Release.
-2. Put it into the folder you like.
-3. Double click TwitchCanlendar-{version}.exe
-4. Follow the instruction, enter the name of your twitch channel. You may check the URL of your channel: https://www.twitch.tv/{channel} It will be the {channel} parts
-5. Close the program (or keep it open)
-6. Add the source in OBS
-7. Enter http://127.0.0.1:8000 (Default) in Link, you may custom the size of it. If you are using the default theme, ratio 1:1 is recommended.
-8. Move the source to the position you like.
-Done
+## 功能 / Features / 機能
 
-### 使用方法
-1. 執行TwitchCanlendar-{版本號}.exe
-2. 把打開的頁面縮放(不要關閉)
-3. 在OBS中開啟直播即可
-4. 直播完畢可關閉程式
+### 中文
 
-### How to use
-1. Double click TwitchCanlendar-{version}.exe
-2. Minimize it(Do not close it).
-3. Start the stream by OBS
-4. You can close the program when your stream is over.
+- 隊列管理：手動加入、刪除、排序、叫號、顯示隊列、重播上次叫號。
+- 聊天指令：排隊、顯示隊列、顯示月曆。
+- 簽到月曆：同一使用者同一天只會保存一筆紀錄。
+- OBS Browser Source 分為叫號、隊列、月曆三個 URL。
+- 叫號、隊列、月曆可各自選擇 CSS。
+- 叫號/隊列音效與月曆簽到音效可分開設定。
+- 介面語言支援中文、English、日本語。
 
-## Configuration / 設定
+### English
 
-設定檔位於 `config/` 目錄，首次執行時會自動建立。
+- Queue management: manual add, delete, reorder, call next, show queue, and replay last call.
+- Chat commands: join queue, show queue, and show calendar.
+- Check-in calendar: one saved row per user per day.
+- Separate OBS Browser Source URLs for call, queue, and calendar.
+- Call, queue, and calendar can each choose their own CSS.
+- Queue/call sound and calendar check-in sound can be configured separately.
+- Interface languages: Chinese, English, Japanese.
 
-The Configuration file is placed in `config/`. It will be created when you execute the file first time.
+### 日本語
 
-### timeZone / 時區
+- キュー管理: 手動追加、削除、並べ替え、呼び出し、キュー表示、前回呼び出しの再表示。
+- チャットコマンド: キュー参加、キュー表示、カレンダー表示。
+- チェックインカレンダー: 同じユーザーは 1 日 1 件だけ保存されます。
+- OBS Browser Source 用 URL は呼び出し、キュー、カレンダーで分かれています。
+- 呼び出し、キュー、カレンダーはそれぞれ別の CSS を選択できます。
+- キュー/呼び出し効果音とカレンダーチェックイン効果音を個別に設定できます。
+- UI 言語は中文、English、日本語に対応しています。
 
-`client_config.json` 的 `timeZone` 欄位使用 IANA time zone 名稱。
+## 安裝 / Installation / インストール
 
-The `timeZone` field in `client_config.json` uses an IANA time zone name.
+### 中文
 
-請填入完整的時區名稱，例如：
+1. 從 Release 下載：
 
-Enter the full time zone name, for example:
+   ```text
+   StreamerTool-v2.0.1.exe
+   ```
 
-```json
-"timeZone": "Asia/Tokyo"
+2. 將 exe 放到你想使用的資料夾。
+3. 雙擊執行 `StreamerTool-v2.0.1.exe`。
+4. 在「連接和 Log」輸入 Twitch 頻道名稱並連接。
+
+首次啟動時會在 exe 旁建立：
+
+```text
+setting/
+csv/
+css/
+audio/
 ```
 
-常用時區範例 / Common time zones:
+### English
 
-| 地區 / Region | timeZone |
-| --- | --- |
-| 東京 / 日本 / Tokyo / Japan | `Asia/Tokyo` |
-| 台灣 / Taiwan | `Asia/Taipei` |
-| 中國 / China | `Asia/Shanghai` |
-| 香港 / Hong Kong | `Asia/Hong_Kong` |
-| 韓國 / South Korea | `Asia/Seoul` |
-| 新加坡 / Singapore | `Asia/Singapore` |
-| 美國東部 / US Eastern | `America/New_York` |
-| 美國西部 / US Pacific | `America/Los_Angeles` |
-| 英國 / United Kingdom | `Europe/London` |
+1. Download from Release:
 
-更多可用時區可以參考：
+   ```text
+   StreamerTool-v2.0.1.exe
+   ```
 
-For more available time zones, see:
+2. Put the exe in the folder you want to use.
+3. Double-click `StreamerTool-v2.0.1.exe`.
+4. Enter the Twitch channel name in Connection & Log and connect.
 
-https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+On first launch, these folders are created beside the exe:
 
-### Theme / 主題
+```text
+setting/
+csv/
+css/
+audio/
+```
 
-`client_config.json` 的 `style` 欄位指定主題，可更換其他主題。
+### 日本語
 
-The `style` field in `client_config.json` can select the theme of the calendar.
+1. Release からダウンロードします:
 
-### Command / 指令
+   ```text
+   StreamerTool-v2.0.1.exe
+   ```
 
-`command.json` 內可自行設置觸發指令的文字。
+2. exe を使用したいフォルダーに置きます。
+3. `StreamerTool-v2.0.1.exe` をダブルクリックします。
+4. 「接続とログ」で Twitch チャンネル名を入力して接続します。
 
-You can set the trigger of the command in `command.json`.
+初回起動時、exe の横に以下のフォルダーが作成されます:
 
-1. ShowCalendarCommand:
-   顯示月曆
-   Show Calendar
+```text
+setting/
+csv/
+css/
+audio/
+```
 
-## ⚖️ License & Third-Party Assets / 開源授權與第三方素材
+## OBS 設定 / OBS Setup / OBS 設定
 
-### Code License / 程式碼授權
-This project is open-source software licensed under the **GNU General Public License v3.0 (GPLv3)**. Please see the [LICENSE](LICENSE) file for the full text.  
-本專案原始碼採用 **GNU 通用公共授權條款第三版 (GPLv3)** 開源，完整條款請參閱 [LICENSE](LICENSE) 檔案。
+### 中文
 
----
+預設 Host 是 `127.0.0.1`，預設 Port 是 `18080`。
 
-### Third-Party Audio Assets Notice / 第三方音效素材聲明
+在 OBS 新增 Browser Source，並填入需要的 URL：
 
-This project includes Pixabay-sourced audio under the **Pixabay Content License**. The same files may appear in more than one place:
+```text
+叫號: http://127.0.0.1:18080/call
+隊列: http://127.0.0.1:18080/queue
+月曆: http://127.0.0.1:18080/calendar
+```
 
-* **Source repository**: the `audio/` directory in this Git repository (for development and reference).
-* **GitHub Release assets**: the versioned assets zip attached to each release (for example `CheckInCalendar-assets-0.0.3.zip`). On first run, the application may download and extract this zip so that `audio/` exists next to the executable.
+實際 URL 可在「一般設定」中複製，也可按預覽。
 
-Regardless of how you obtained the files, the restrictions below apply to all copies.
+### English
 
-本專案的音效素材源自 [Pixabay](https://pixabay.com)，遵循 **Pixabay Content License**。相同檔案可能出現在以下位置：
+Default host is `127.0.0.1`, and default port is `18080`.
 
-* **原始碼庫**：本 Git 儲存庫內的 `audio/` 資料夾（供開發與參考）。
-* **GitHub Release 資源包**：各版本 Release 所附的 assets 壓縮檔（例如 `CheckInCalendar-assets-0.0.3.zip`）。程式首次執行時可能會下載並解壓，在執行檔旁建立 `audio/`。
+Add Browser Sources in OBS and use the needed URLs:
 
-無論從上述哪一種方式取得，均適用下列限制。
+```text
+Call:     http://127.0.0.1:18080/call
+Queue:    http://127.0.0.1:18080/queue
+Calendar: http://127.0.0.1:18080/calendar
+```
 
-* **Standalone Distribution Prohibited**: These audio files are bundled strictly for the functional use of this application. In compliance with Pixabay's terms, you are **strictly prohibited** from extracting, redistributing, reselling, or using these audio files standalone for any other purposes.
-* **License Separation**: The GPLv3 license of this project applies **ONLY** to the source code and does not extend to the Pixabay audio assets.
+The actual URLs can be copied from General Settings, and preview buttons are available.
 
-* **禁止獨立散佈**：這些音效檔案僅供本應用程式執行功能使用。根據 Pixabay 服務條款，**嚴禁將音效單獨擷取、重新分發、轉售或挪作他用**（不論來自 repo 的 `audio/` 或 Release 資源包）。
-* **授權獨立性**：本專案採用的 GPLv3 條款**僅適用於程式碼**，並不包含、也不延伸至 Pixabay 的音效素材。
+### 日本語
 
-See also `audio/README.md` in the repository and inside the release assets zip.
-另請參閱儲存庫與 Release 資源包內的 `audio/README.md`。
+標準ホストは `127.0.0.1`、標準ポートは `18080` です。
 
+OBS に Browser Source を追加し、必要な URL を入力します:
+
+```text
+呼び出し: http://127.0.0.1:18080/call
+キュー:   http://127.0.0.1:18080/queue
+カレンダー: http://127.0.0.1:18080/calendar
+```
+
+実際の URL は「一般設定」からコピーでき、プレビューボタンも使用できます。
+
+## 使用方法 / How to Use / 使い方
+
+### 中文
+
+1. 開啟 StreamerTool。
+2. 在「連接和 Log」連接頻道。
+3. 在 OBS 加入需要的 Browser Source。
+4. 開台期間保持 StreamerTool 開啟。
+5. 收台後可關閉 StreamerTool。
+
+### English
+
+1. Open StreamerTool.
+2. Connect to the channel in Connection & Log.
+3. Add the needed Browser Sources in OBS.
+4. Keep StreamerTool open while streaming.
+5. Close StreamerTool after the stream ends.
+
+### 日本語
+
+1. StreamerTool を開きます。
+2. 「接続とログ」でチャンネルに接続します。
+3. OBS に必要な Browser Source を追加します。
+4. 配信中は StreamerTool を開いたままにします。
+5. 配信終了後、StreamerTool を閉じます。
+
+## 介面分頁 / UI Tabs / UI タブ
+
+### 中文
+
+1. 連接和 Log：平台連接與執行 Log。
+2. 隊列管理：手動管理隊列、接受排隊、叫號、顯示隊列。
+3. 一般設定：語言、時區、Port、OBS Source URL。
+4. 指令設定：排隊指令、顯示隊列指令、顯示月曆指令。
+5. 隊列設定：叫號文字、顯示秒數、隊列顯示數量、音效、Call/Queue CSS。
+6. 月曆設定：月曆顯示秒數、星期文字、CSV 前綴、Calendar CSS、簽到音效、月曆文字模板。
+
+### English
+
+1. Connection & Log: platform connection and runtime log.
+2. Queue: manual queue operations, accept queue toggle, call next, show queue.
+3. General Settings: language, timezone, port, and OBS Source URLs.
+4. Command Settings: join queue commands, show queue commands, show calendar commands.
+5. Queue Settings: call text, display duration, queue display count, sound, Call/Queue CSS.
+6. Calendar Settings: calendar duration, weekday text, CSV prefix, Calendar CSS, check-in sound, calendar text templates.
+
+### 日本語
+
+1. 接続とログ: プラットフォーム接続と実行ログ。
+2. キュー: 手動キュー操作、キュー受付、呼び出し、キュー表示。
+3. 一般設定: 言語、タイムゾーン、ポート、OBS Source URL。
+4. コマンド設定: キュー参加コマンド、キュー表示コマンド、カレンダー表示コマンド。
+5. キュー設定: 呼び出し文、表示秒数、キュー表示数、効果音、Call/Queue CSS。
+6. カレンダー設定: カレンダー表示秒数、曜日表示、CSV 接頭辞、Calendar CSS、チェックイン効果音、カレンダーテキスト。
+
+## 指令 / Commands / コマンド
+
+### 中文
+
+預設指令：
+
+```text
+排隊: !join, !queue
+顯示隊列: !list, !queue-list
+顯示月曆: !calendar, !Calendar
+```
+
+月曆指令可指定月份：
+
+```text
+!calendar 2026-07
+```
+
+使用任何指令都不會簽到。
+
+### English
+
+Default commands:
+
+```text
+Join queue: !join, !queue
+Show queue: !list, !queue-list
+Show calendar: !calendar, !Calendar
+```
+
+The calendar command can specify a month:
+
+```text
+!calendar 2026-07
+```
+
+Using any command does not count as calendar check-in.
+
+### 日本語
+
+標準コマンド:
+
+```text
+キュー参加: !join, !queue
+キュー表示: !list, !queue-list
+カレンダー表示: !calendar, !Calendar
+```
+
+カレンダーコマンドでは月を指定できます:
+
+```text
+!calendar 2026-07
+```
+
+どのコマンドを使ってもチェックインにはなりません。
+
+## 時區 / Timezone / タイムゾーン
+
+### 中文
+
+StreamerTool 使用 UTC 偏移，不使用 IANA timezone。
+
+可使用範例：
+
+```text
+UTC+8
+UTC+9
++1
+-6
++5:30
+UTC-4
+```
+
+選擇 `Other / Custom` 時，右側會出現 `UTC Offset` 輸入框。
+
+### English
+
+StreamerTool uses UTC offsets instead of IANA timezone names.
+
+Examples:
+
+```text
+UTC+8
+UTC+9
++1
+-6
++5:30
+UTC-4
+```
+
+When selecting `Other / Custom`, a `UTC Offset` input appears on the right.
+
+### 日本語
+
+StreamerTool は IANA タイムゾーン名ではなく UTC オフセットを使用します。
+
+例:
+
+```text
+UTC+8
+UTC+9
++1
+-6
++5:30
+UTC-4
+```
+
+`Other / Custom` を選ぶと、右側に `UTC Offset` 入力欄が表示されます。
+
+## 顯示秒數 / Display Duration / 表示秒数
+
+### 中文
+
+叫號、隊列、月曆的顯示秒數都遵循：
+
+```text
+0 = 常駐顯示
+```
+
+大於 0 時以秒為單位自動隱藏。
+
+### English
+
+Call, queue, and calendar display durations follow this rule:
+
+```text
+0 = keep visible
+```
+
+Values above 0 auto-hide after that many seconds.
+
+### 日本語
+
+呼び出し、キュー、カレンダーの表示秒数は以下のルールです:
+
+```text
+0 = 常時表示
+```
+
+0 より大きい値は、その秒数後に自動で非表示になります。
+
+## 月曆 CSV / Calendar CSV / カレンダー CSV
+
+### 中文
+
+CSV 會保存到：
+
+```text
+csv/
+```
+
+欄位：
+
+```text
+date, username, displayName, timestamp, isFirst
+```
+
+同一使用者同一天只會保存一筆紀錄。Avatar 不會保存到 CSV，會由 overlay 即時讀取：
+
+```text
+https://unavatar.io/twitch/{username}
+```
+
+### English
+
+CSV files are saved to:
+
+```text
+csv/
+```
+
+Columns:
+
+```text
+date, username, displayName, timestamp, isFirst
+```
+
+Each user is saved at most once per day. Avatar URLs are not saved in CSV and are loaded by the overlay:
+
+```text
+https://unavatar.io/twitch/{username}
+```
+
+### 日本語
+
+CSV は以下に保存されます:
+
+```text
+csv/
+```
+
+列:
+
+```text
+date, username, displayName, timestamp, isFirst
+```
+
+同じユーザーは 1 日 1 件だけ保存されます。アバター URL は CSV に保存されず、overlay が読み込みます:
+
+```text
+https://unavatar.io/twitch/{username}
+```
+
+## CSS 主題 / CSS Themes / CSS テーマ
+
+### 中文
+
+Runtime CSS 資料夾：
+
+```text
+css/call/
+css/queue/
+css/calendar/
+```
+
+叫號、隊列、月曆可各自選擇 CSS。
+
+### English
+
+Runtime CSS folders:
+
+```text
+css/call/
+css/queue/
+css/calendar/
+```
+
+Call, queue, and calendar can each choose their own CSS.
+
+### 日本語
+
+実行時 CSS フォルダー:
+
+```text
+css/call/
+css/queue/
+css/calendar/
+```
+
+呼び出し、キュー、カレンダーはそれぞれ CSS を選択できます。
+
+## 音效 / Audio / 効果音
+
+### 中文
+
+Runtime 音效資料夾：
+
+```text
+audio/
+```
+
+選擇的音效會複製到此資料夾。預設音效是：
+
+```text
+audio/default.mp3
+```
+
+叫號/隊列音效與月曆簽到音效可分開設定。
+
+### English
+
+Runtime audio folder:
+
+```text
+audio/
+```
+
+Selected sound files are copied into this folder. The default sound is:
+
+```text
+audio/default.mp3
+```
+
+Queue/call sound and calendar check-in sound can be configured separately.
+
+### 日本語
+
+実行時音声フォルダー:
+
+```text
+audio/
+```
+
+選択した効果音はこのフォルダーにコピーされます。標準効果音:
+
+```text
+audio/default.mp3
+```
+
+キュー/呼び出し効果音とカレンダーチェックイン効果音は別々に設定できます。
+
+## 打包 / Build / ビルド
+
+### 中文
+
+Release 打包前請先關閉正在執行的 StreamerTool。
+
+```powershell
+python -m py_compile .\StreamerTool.py
+python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.1.exe -Force
+```
+
+### English
+
+Close running StreamerTool processes before building a release.
+
+```powershell
+python -m py_compile .\StreamerTool.py
+python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.1.exe -Force
+```
+
+### 日本語
+
+Release ビルド前に実行中の StreamerTool を閉じてください。
+
+```powershell
+python -m py_compile .\StreamerTool.py
+python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.1.exe -Force
+```
+
+## 授權 / License / ライセンス
+
+### 中文
+
+程式碼採用 GPLv3，請參閱 `LICENSE`。
+
+預設音效來源為 Pixabay，音效授權與 GPLv3 程式碼授權分開。不要將內建音效作為獨立音效檔重新散佈、轉售或挪作其他用途。
+
+### English
+
+Source code is licensed under GPLv3. See `LICENSE`.
+
+The default audio is sourced from Pixabay. Audio licensing is separate from the GPLv3 source code license. Do not redistribute, resell, or use the bundled audio as standalone audio files outside StreamerTool.
+
+### 日本語
+
+ソースコードは GPLv3 ライセンスです。`LICENSE` を参照してください。
+
+標準効果音は Pixabay 由来です。音声ライセンスは GPLv3 のソースコードライセンスとは別です。内蔵効果音を StreamerTool 外で単独の音声ファイルとして再配布、販売、使用しないでください。

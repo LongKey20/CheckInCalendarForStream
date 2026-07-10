@@ -1,9 +1,0 @@
-{
-  "channel": "longkey",
-  "displaySeconds": 6,
-  "timeZone": "Asia/Tokyo",
-  "dataUrl": "/calendar",
-  "apiWriteUrl": "/api/write-csv",
-  "style": "theme/default.css",
-  "configVersion": "0.0.3"
-}

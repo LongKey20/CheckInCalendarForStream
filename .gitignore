@@ -12,9 +12,10 @@ __pycache__/
 
 # Ignore data folder
 csv/
-.assets-installed.json
+setting/
 dist/
 release/
 release2/
 build/
 tools/
+AIDocument/
