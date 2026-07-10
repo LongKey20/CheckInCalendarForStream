@@ -51,6 +51,19 @@ LOG_MAX_LINES = 500
 DEFAULT_JOIN_COMMANDS = ["!排隊", "!join", "!queue", "!参加"]
 DEFAULT_QUEUE_COMMANDS = ["!隊列", "!list", "!queue-list", "!キュー"]
 DEFAULT_CALENDAR_COMMANDS = ["!月曆", "!calendar", "!カレンダー"]
+DEFAULT_BLACKLIST_NAMES = [
+    "Nightbot",
+    "Streamlabs",
+    "StreamElements",
+    "Moobot",
+    "Fossabot",
+    "WizeBot",
+    "Botisimo",
+    "OWN3D",
+    "Sery_Bot",
+    "SoundAlerts",
+    "PretzelRocks",
+]
 COMMAND_CONFIG_VERSION = 5
 CALENDAR_HEADERS = ["date", "username", "displayName", "timestamp", "isFirst"]
 SYSTEM_TIME_ZONE_LABEL = "System Time Zone"
@@ -249,6 +262,7 @@ TRANSLATIONS = {
         "settings_tab": "設定",
         "connection_log_tab": "連接和 Log",
         "command_settings_tab": "指令設定",
+        "blacklist_tab": "黑名單",
         "queue_settings_tab": "隊列設定",
         "log": "Log",
         "twitch_connection": "Twitch 聊天連線",
@@ -331,10 +345,17 @@ TRANSLATIONS = {
         "current_join_commands": "目前排隊指令",
         "current_queue_commands": "目前顯示隊列指令",
         "delete_commands": "刪除選取指令",
+        "blacklist_name": "黑名單名稱",
+        "blacklist_hint": "名單內的 Twitch login 或顯示名稱不會觸發簽到，也會忽略所有指令。",
+        "current_blacklist": "目前黑名單",
+        "delete_blacklist": "刪除選取名稱",
+        "blacklist_exists_title": "名稱已存在",
+        "blacklist_exists": "{name} 已經在黑名單中。",
         "command_exists_title": "指令已存在",
         "command_exists": "{command} 已經在設定中。",
         "confirm_delete": "確認刪除",
         "confirm_delete_commands": "確定刪除選取的 {count} 個指令？",
+        "confirm_delete_blacklist": "確定刪除選取的 {count} 個黑名單名稱？",
         "confirm_delete_viewers": "確定刪除選取的 {count} 位觀眾？",
         "empty_title": "隊列是空的",
         "empty_message": "目前沒有觀眾在隊列中。",
@@ -370,6 +391,7 @@ TRANSLATIONS = {
         "settings_tab": "Settings",
         "connection_log_tab": "Connection & Log",
         "command_settings_tab": "Command Settings",
+        "blacklist_tab": "Blacklist",
         "queue_settings_tab": "Queue Settings",
         "log": "Log",
         "twitch_connection": "Twitch Chat Connection",
@@ -452,10 +474,17 @@ TRANSLATIONS = {
         "current_join_commands": "Current Join Commands",
         "current_queue_commands": "Current Queue Commands",
         "delete_commands": "Delete Selected Commands",
+        "blacklist_name": "Blacklist Name",
+        "blacklist_hint": "Twitch login or display names on this list will not check in and all commands are ignored.",
+        "current_blacklist": "Current Blacklist",
+        "delete_blacklist": "Delete Selected Names",
+        "blacklist_exists_title": "Name Exists",
+        "blacklist_exists": "{name} is already on the blacklist.",
         "command_exists_title": "Command Exists",
         "command_exists": "{command} already exists.",
         "confirm_delete": "Confirm Delete",
         "confirm_delete_commands": "Delete {count} selected commands?",
+        "confirm_delete_blacklist": "Delete {count} selected blacklist names?",
         "confirm_delete_viewers": "Delete {count} selected viewers?",
         "empty_title": "Queue Is Empty",
         "empty_message": "There are no viewers in the queue.",
@@ -493,6 +522,7 @@ TRANSLATIONS["ja"].update({
     "settings_tab": "設定",
     "connection_log_tab": "接続とログ",
     "command_settings_tab": "コマンド設定",
+    "blacklist_tab": "ブラックリスト",
     "queue_settings_tab": "キュー設定",
     "log": "ログ",
     "general_settings": "一般設定",
@@ -511,6 +541,13 @@ TRANSLATIONS["ja"].update({
     "calendar_command_text_label": "カレンダー表示コマンド時テキスト",
     "calendar_name_variable_hint": "名前変数: {name}",
     "duration_zero_hint": "0 は常時表示",
+    "blacklist_name": "ブラックリスト名",
+    "blacklist_hint": "このリストの Twitch ログイン名または表示名はチェックインせず、すべてのコマンドも無視します。",
+    "current_blacklist": "現在のブラックリスト",
+    "delete_blacklist": "選択した名前を削除",
+    "blacklist_exists_title": "名前は登録済みです",
+    "blacklist_exists": "{name} はすでにブラックリストにあります。",
+    "confirm_delete_blacklist": "選択した {count} 件のブラックリスト名を削除しますか？",
     "sound_effect": "効果音",
     "apply": "設定を適用",
     "browse": "参照...",
@@ -609,6 +646,10 @@ def parse_utc_offset(value: str) -> int | None:
     return sign * (hours * 60 + minutes)
 
 
+def normalize_blacklist_name(value: str) -> str:
+    return str(value or "").strip().lstrip("@").casefold()
+
+
 def detect_default_time_zone_label() -> str:
     offset = datetime.now().astimezone().utcoffset() or timedelta()
     total_minutes = round(offset.total_seconds() / 60)
@@ -688,6 +729,7 @@ class State:
         self.commands = list(DEFAULT_JOIN_COMMANDS)
         self.queue_commands = list(DEFAULT_QUEUE_COMMANDS)
         self.calendar_commands = list(DEFAULT_CALENDAR_COMMANDS)
+        self.blacklist_names = list(DEFAULT_BLACKLIST_NAMES)
         self.last_called_names: list[str] = []
         self.overlay_event = {
             "call": {
@@ -776,6 +818,15 @@ class State:
             called = data.get("last_called_names", [])
             if isinstance(called, list):
                 self.last_called_names = [str(name) for name in called]
+            blacklist_names = data.get("blacklist_names", None)
+            if isinstance(blacklist_names, list):
+                cleaned = [str(name).strip().lstrip("@") for name in blacklist_names if normalize_blacklist_name(str(name))]
+                self.blacklist_names = list(dict.fromkeys(cleaned))
+            elif blacklist_names is None:
+                existing_blacklist = {normalize_blacklist_name(name) for name in self.blacklist_names}
+                self.blacklist_names.extend(
+                    name for name in DEFAULT_BLACKLIST_NAMES if normalize_blacklist_name(name) not in existing_blacklist
+                )
         except (FileNotFoundError, ValueError, TypeError, json.JSONDecodeError):
             pass
 
@@ -837,6 +888,7 @@ class State:
                 "call_css_file": self.call_css_file,
                 "queue_css_file": self.queue_css_file,
                 "calendar_css_file": self.calendar_css_file,
+                "blacklist_names": self.blacklist_names,
                 "last_called_names": self.last_called_names,
             }
             temp = STATE_FILE.with_suffix(".tmp")
@@ -854,6 +906,14 @@ class State:
             temp = COMMAND_FILE.with_suffix(".tmp")
             temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
             os.replace(temp, COMMAND_FILE)
+
+    def is_blacklisted(self, login: str, display_name: str = "") -> bool:
+        candidates = {normalize_blacklist_name(login), normalize_blacklist_name(display_name)}
+        candidates.discard("")
+        if not candidates:
+            return False
+        blacklist = {normalize_blacklist_name(name) for name in self.blacklist_names}
+        return bool(candidates & blacklist)
 
     def add_viewer(self, name: str) -> bool:
         with self.lock:
@@ -1631,6 +1691,13 @@ class TwitchChat(threading.Thread):
             return
         prefix, _, message = line.partition(" PRIVMSG #")
         _, _, text = message.partition(" :")
+        _tags, login, display_name = TwitchChat._parse_twitch_sender(prefix)
+        if not login:
+            return
+        with STATE.lock:
+            is_blacklisted = STATE.is_blacklisted(login, display_name)
+        if is_blacklisted:
+            return
         command = text.strip().casefold()
         with STATE.lock:
             join_matches = {item.casefold() for item in STATE.commands}
@@ -1642,9 +1709,6 @@ class TwitchChat(threading.Thread):
         if is_queue_command:
             STATE.show_queue_overlay()
             UI_EVENTS.put(("queue_display", ""))
-        _tags, login, display_name = TwitchChat._parse_twitch_sender(prefix)
-        if not login:
-            return
         if display_name and login and display_name.casefold() != login.casefold():
             name = f"{display_name}({login})"
         else:
@@ -1717,12 +1781,14 @@ class App:
         self.queue_tab = ttk.Frame(notebook)
         self.general_tab = ttk.Frame(notebook)
         self.command_tab = ttk.Frame(notebook)
+        self.blacklist_tab = ttk.Frame(notebook)
         self.queue_settings_tab = ttk.Frame(notebook)
         self.calendar_settings_tab = ttk.Frame(notebook)
         notebook.add(self.connection_tab, text=self.tr("connection_log_tab"))
         notebook.add(self.queue_tab, text=self.tr("queue_tab"))
         notebook.add(self.general_tab, text=self.tr("general_settings"))
         notebook.add(self.command_tab, text=self.tr("command_settings_tab"))
+        notebook.add(self.blacklist_tab, text=self.tr("blacklist_tab"))
         notebook.add(self.queue_settings_tab, text=self.tr("queue_settings_tab"))
         notebook.add(self.calendar_settings_tab, text=self.tr("calendar_settings"))
 
@@ -1912,6 +1978,30 @@ class App:
         blank_command_frame = ttk.Frame(commands_frame)
         blank_command_frame.grid(row=1, column=1, sticky="nsew", padx=(6, 0), pady=(12, 0))
 
+        self.blacklist_tab.columnconfigure(0, weight=1)
+        self.blacklist_tab.rowconfigure(1, weight=1)
+        blacklist_add = ttk.LabelFrame(self.blacklist_tab, text=self.tr("blacklist_name"), padding=12)
+        blacklist_add.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
+        blacklist_add.columnconfigure(1, weight=1)
+        ttk.Label(blacklist_add, text=self.tr("blacklist_name")).grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.blacklist_var = tk.StringVar()
+        blacklist_entry = ttk.Entry(blacklist_add, textvariable=self.blacklist_var)
+        blacklist_entry.grid(row=0, column=1, sticky="ew")
+        blacklist_entry.bind("<Return>", lambda _event: self.add_blacklist_name())
+        ttk.Button(blacklist_add, text=self.tr("add"), command=self.add_blacklist_name).grid(row=0, column=2, padx=(8, 0))
+        ttk.Label(blacklist_add, text=self.tr("blacklist_hint")).grid(row=1, column=1, columnspan=2, sticky="w", pady=(8, 0))
+
+        blacklist_frame = ttk.LabelFrame(self.blacklist_tab, text=self.tr("current_blacklist"), padding=12)
+        blacklist_frame.grid(row=1, column=0, sticky="nsew", padx=12, pady=(6, 12))
+        blacklist_frame.columnconfigure(0, weight=1)
+        blacklist_frame.rowconfigure(0, weight=1)
+        self.blacklist_list = tk.Listbox(blacklist_frame, selectmode=tk.EXTENDED, font=("", 12), activestyle="none")
+        self.blacklist_list.grid(row=0, column=0, sticky="nsew")
+        blacklist_scroll = ttk.Scrollbar(blacklist_frame, orient="vertical", command=self.blacklist_list.yview)
+        blacklist_scroll.grid(row=0, column=1, sticky="ns")
+        self.blacklist_list.configure(yscrollcommand=blacklist_scroll.set)
+        ttk.Button(blacklist_frame, text=self.tr("delete_blacklist"), command=self.delete_blacklist_names).grid(row=1, column=0, columnspan=2, sticky="e", pady=(10, 0))
+
         self.queue_settings_tab.columnconfigure(0, weight=1)
         queue_general = ttk.LabelFrame(self.queue_settings_tab, text=self.tr("queue_display_settings"), padding=12)
         queue_general.grid(row=0, column=0, sticky="ew", padx=12, pady=12)
@@ -2001,6 +2091,7 @@ class App:
         ttk.Button(calendar_settings, text=self.tr("apply"), command=self.apply_settings).grid(row=9, column=1, sticky="w", pady=(12, 0))
 
         self.refresh_commands()
+        self.refresh_blacklist()
         return
 
         notebook = ttk.Notebook(self.root)
@@ -2257,6 +2348,15 @@ class App:
         for command in calendar_commands:
             self.calendar_command_list.insert(tk.END, command)
 
+    def refresh_blacklist(self) -> None:
+        if not hasattr(self, "blacklist_list"):
+            return
+        self.blacklist_list.delete(0, tk.END)
+        with STATE.lock:
+            blacklist_names = list(STATE.blacklist_names)
+        for name in blacklist_names:
+            self.blacklist_list.insert(tk.END, name)
+
     def update_custom_time_zone_visibility(self) -> None:
         if not hasattr(self, "calendar_time_zone_custom_frame"):
             return
@@ -2486,6 +2586,39 @@ class App:
                 del target[index]
             STATE.save_commands()
         self.refresh_commands()
+
+    def add_blacklist_name(self) -> None:
+        name = self.blacklist_var.get().strip().lstrip("@")
+        normalized = normalize_blacklist_name(name)
+        if not normalized:
+            return
+        with STATE.lock:
+            if normalized in (normalize_blacklist_name(item) for item in STATE.blacklist_names):
+                messagebox.showinfo(
+                    self.tr("blacklist_exists_title"),
+                    self.tr("blacklist_exists", name=name),
+                )
+                return
+            STATE.blacklist_names.append(name)
+            STATE.save()
+        self.blacklist_var.set("")
+        self.refresh_blacklist()
+
+    def delete_blacklist_names(self) -> None:
+        selected = list(self.blacklist_list.curselection())
+        if not selected:
+            return
+        if not messagebox.askyesno(
+            self.tr("confirm_delete"),
+            self.tr("confirm_delete_blacklist", count=len(selected)),
+            icon="warning",
+        ):
+            return
+        with STATE.lock:
+            for index in reversed(selected):
+                del STATE.blacklist_names[index]
+            STATE.save()
+        self.refresh_blacklist()
 
     def selected_indices(self) -> list[int]:
         return sorted(int(item) for item in self.tree.selection())
