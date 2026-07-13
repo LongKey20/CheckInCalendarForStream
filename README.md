@@ -1,4 +1,4 @@
-# StreamerTool v2.0.1
+# StreamerTool v2.0.2
 
 StreamerTool 是給實況主使用的 Windows 工具，提供隊列管理與簽到月曆功能。目前支援 Twitch 聊天室，未來可擴充到 YouTube 等平台。
 
@@ -7,7 +7,7 @@ StreamerTool is a Windows tool for streamers. It provides queue management and a
 StreamerTool は配信者向けの Windows ツールです。キュー管理とチェックインカレンダー機能を提供します。現在は Twitch チャットに対応しており、将来的には YouTube などのプラットフォームにも拡張できます。
 
 ## 下載 / Download / ダウンロード
-StreamerTool　V2.0.1　https://github.com/LongKey20/StreamerTool/releases/tag/Version-2.0.1-Release
+StreamerTool　V2.0.2　https://github.com/LongKey20/StreamerTool/releases/tag/Version-2.0.2-Release
 
 ## 功能 / Features / 機能
 
@@ -48,11 +48,11 @@ StreamerTool　V2.0.1　https://github.com/LongKey20/StreamerTool/releases/tag/V
 1. 從 Release 下載：
 
    ```text
-   StreamerTool-v2.0.1.exe
+   StreamerTool-v2.0.2.exe
    ```
 
 2. 將 exe 放到你想使用的資料夾。
-3. 雙擊執行 `StreamerTool-v2.0.1.exe`。
+3. 雙擊執行 `StreamerTool-v2.0.2.exe`。
 4. 在「連接和 Log」輸入 Twitch 頻道名稱並連接。
 
 首次啟動時會在 exe 旁建立：
@@ -69,11 +69,11 @@ audio/
 1. Download from Release:
 
    ```text
-   StreamerTool-v2.0.1.exe
+   StreamerTool-v2.0.2.exe
    ```
 
 2. Put the exe in the folder you want to use.
-3. Double-click `StreamerTool-v2.0.1.exe`.
+3. Double-click `StreamerTool-v2.0.2.exe`.
 4. Enter the Twitch channel name in Connection & Log and connect.
 
 On first launch, these folders are created beside the exe:
@@ -90,11 +90,11 @@ audio/
 1. Release からダウンロードします:
 
    ```text
-   StreamerTool-v2.0.1.exe
+   StreamerTool-v2.0.2.exe
    ```
 
 2. exe を使用したいフォルダーに置きます。
-3. `StreamerTool-v2.0.1.exe` をダブルクリックします。
+3. `StreamerTool-v2.0.2.exe` をダブルクリックします。
 4. 「接続とログ」で Twitch チャンネル名を入力して接続します。
 
 初回起動時、exe の横に以下のフォルダーが作成されます:
@@ -505,7 +505,7 @@ Release 打包前請先關閉正在執行的 StreamerTool。
 ```powershell
 python -m py_compile .\StreamerTool.py
 python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
-Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.1.exe -Force
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.2.exe -Force
 ```
 
 ### English
@@ -515,7 +515,7 @@ Close running StreamerTool processes before building a release.
 ```powershell
 python -m py_compile .\StreamerTool.py
 python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
-Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.1.exe -Force
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.2.exe -Force
 ```
 
 ### 日本語
@@ -525,7 +525,7 @@ Release ビルド前に実行中の StreamerTool を閉じてください。
 ```powershell
 python -m py_compile .\StreamerTool.py
 python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
-Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.1.exe -Force
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.2.exe -Force
 ```
 
 ## 授權 / License / ライセンス

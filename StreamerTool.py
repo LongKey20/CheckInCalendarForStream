@@ -46,7 +46,7 @@ QUEUE_CSS_FILE = QUEUE_CSS_DIR / "default.css"
 CALENDAR_CSS_FILE = CALENDAR_CSS_DIR / "default.css"
 HOST = "127.0.0.1"
 PORT = 18080
-APP_VERSION = "2.0.1"
+APP_VERSION = "2.0.2"
 LOG_MAX_LINES = 500
 DEFAULT_JOIN_COMMANDS = ["!排隊", "!join", "!queue", "!参加"]
 DEFAULT_QUEUE_COMMANDS = ["!隊列", "!list", "!queue-list", "!キュー"]
@@ -63,6 +63,7 @@ DEFAULT_BLACKLIST_NAMES = [
     "Sery_Bot",
     "SoundAlerts",
     "PretzelRocks",
+    "ChiwaBots",
 ]
 COMMAND_CONFIG_VERSION = 5
 CALENDAR_HEADERS = ["date", "username", "displayName", "timestamp", "isFirst"]
@@ -1323,9 +1324,9 @@ const dayCells={};
 const calendarSound=new Audio();
 calendarSound.preload='auto';
 const weekdayLabels={
-  zh:['??,'銝','鈭?,'銝?,'??,'鈭?,'??],
+  zh:['\u65e5','\u4e00','\u4e8c','\u4e09','\u56db','\u4e94','\u516d'],
   en:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
-  ja:['??,'??,'??,'瘞?,'??,'??,'??]
+  ja:['\u65e5','\u6708','\u706b','\u6c34','\u6728','\u91d1','\u571f']
 };
 const box=document.getElementById('calendarBox');
 const grid=document.getElementById('daysGrid');
