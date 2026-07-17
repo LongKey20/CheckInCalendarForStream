@@ -13,9 +13,9 @@ a = Analysis(
         (str(python_root / "DLLs" / "tk86t.dll"), "."),
     ],
     datas=[
-        ("css/call", "css/call"),
-        ("css/queue", "css/queue"),
-        ("css/calendar", "css/calendar"),
+        ("css/call/default.css", "css/call"),
+        ("css/queue/default.css", "css/queue"),
+        ("css/calendar/default.css", "css/calendar"),
         ("audio/default.mp3", "audio"),
         ("audio/README.md", "audio"),
         (str(python_root / "Lib" / "tkinter"), "tkinter"),

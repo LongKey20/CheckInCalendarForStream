@@ -13,6 +13,7 @@ import shutil
 import socket
 import ssl
 import struct
+import subprocess
 import sys
 import threading
 import time
@@ -41,13 +42,17 @@ STATE_FILE = SETTING_DIR / "setting.json"
 COMMAND_FILE = SETTING_DIR / "command.json"
 LEGACY_STATE_FILES = [APP_DIR / "queue-state.json", APP_DIR / "queue_state.json"]
 LEGACY_COMMAND_FILE = APP_DIR / "command.json"
+HAS_EXISTING_STATE_FILE = STATE_FILE.exists() or any(path.exists() for path in LEGACY_STATE_FILES)
 CALL_CSS_FILE = CALL_CSS_DIR / "default.css"
 QUEUE_CSS_FILE = QUEUE_CSS_DIR / "default.css"
 CALENDAR_CSS_FILE = CALENDAR_CSS_DIR / "default.css"
 HOST = "127.0.0.1"
 PORT = 18080
-APP_VERSION = "2.0.2"
+APP_VERSION = "2.0.3"
 LOG_MAX_LINES = 500
+CHAT_IDLE_TIMEOUT_SECONDS = 420
+CSS_VERSION = 1
+CSS_VERSION_MARKER_PREFIX = "StreamerTool CSS Version:"
 DEFAULT_JOIN_COMMANDS = ["!排隊", "!join", "!queue", "!参加"]
 DEFAULT_QUEUE_COMMANDS = ["!隊列", "!list", "!queue-list", "!キュー"]
 DEFAULT_CALENDAR_COMMANDS = ["!月曆", "!calendar", "!カレンダー"]
@@ -65,6 +70,13 @@ DEFAULT_BLACKLIST_NAMES = [
     "PretzelRocks",
     "ChiwaBots",
 ]
+STREAMING_TOOL_PROCESSES = {
+    "obs64.exe": "OBS Studio",
+    "obs32.exe": "OBS Studio",
+    "streamlabs desktop.exe": "Streamlabs Desktop",
+    "streamlabs obs.exe": "Streamlabs OBS",
+    "twitchstudio.exe": "Twitch Studio",
+}
 COMMAND_CONFIG_VERSION = 5
 CALENDAR_HEADERS = ["date", "username", "displayName", "timestamp", "isFirst"]
 SYSTEM_TIME_ZONE_LABEL = "System Time Zone"
@@ -79,6 +91,7 @@ UTC_TIME_ZONE_OPTIONS = {
     "UTC-7 - US Pacific Daylight": -7 * 60,
 }
 DEFAULT_CSS = """/*
+ * StreamerTool CSS Version: 1
  * Queue for Streamer - OBS 憿舐內璅??
  * ?航?曹耨?寞迨瑼BS ??渡? Browser Source 敺?憟?唳見撘?
  */
@@ -93,7 +106,7 @@ body {
 }
 
 body {
-  --overlay-safe-padding: 48px;
+  --overlay-safe-padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -314,7 +327,24 @@ TRANSLATIONS = {
         "calendar_command_hint": "觀眾訊息符合這些指令時會顯示月曆，可用 !月曆 2026-07。",
         "current_calendar_commands": "目前月曆指令",
         "calendar_displayed": "已顯示月曆",
+        "manual_calendar_display": "手動顯示月曆",
+        "manual_calendar_target": "目標人物名",
+        "manual_calendar_month": "年月",
+        "manual_calendar_month_hint": "空白 = 目前月份，格式：2026-06",
+        "manual_calendar_show": "顯示月曆",
+        "manual_calendar_missing_target": "請輸入目標人物名。",
+        "manual_calendar_invalid_month": "年月格式必須是 YYYY-MM，例如 2026-06。",
+        "manual_calendar_shown": "已為 {name} 顯示月曆",
         "calendar_checked_in": "{name} 已簽到",
+        "streaming_tool_notice_title": "直播工具已開啟",
+        "streaming_tool_notice_message": "偵測到 {tools} 可能已經開啟。\n\n如果 OBS / Streamlabs 的月曆、隊列或叫號畫面沒有顯示，請重新整理 Browser Source。",
+        "css_version_notice_title": "CSS 版本檢查",
+        "css_version_notice_message": "偵測到目前使用中的 CSS 可能是舊版或沒有版本標記：\n\n{files}\n\n選擇「是」：先備份舊 CSS，再盡量不改動原 CSS 的前提下進行必要更新。好處是保留自訂外觀，同時補上新版需要的相容內容；風險是如果 CSS 結構太舊，仍可能需要手動調整。\n\n選擇「否」：保持原狀。好處是自訂外觀完全不會被改動；風險是如果 CSS 結構太舊，OBS 顯示可能異常。",
+        "css_updated_title": "CSS 已更新",
+        "css_updated_message": "已更新 CSS，並建立備份：\n\n{files}",
+        "css_update_failed_title": "CSS 更新失敗",
+        "css_update_failed_message": "無法更新 CSS：{error}",
+        "css_no_version": "沒有版本標記",
         "display_text": "叫號文字",
         "name_hint": "使用 {name} 代表觀眾名稱",
         "copy_url": "複製網址",
@@ -443,7 +473,24 @@ TRANSLATIONS = {
         "calendar_command_hint": "Show the calendar when a viewer message matches one of these commands. Optional: !calendar 2026-07.",
         "current_calendar_commands": "Current Calendar Commands",
         "calendar_displayed": "Calendar shown in OBS",
+        "manual_calendar_display": "Manual Calendar Display",
+        "manual_calendar_target": "Target Name",
+        "manual_calendar_month": "Year-Month",
+        "manual_calendar_month_hint": "Blank = current month. Format: 2026-06",
+        "manual_calendar_show": "Show Calendar",
+        "manual_calendar_missing_target": "Enter a target name.",
+        "manual_calendar_invalid_month": "Use YYYY-MM format, such as 2026-06.",
+        "manual_calendar_shown": "Calendar shown for {name}",
         "calendar_checked_in": "{name} checked in",
+        "streaming_tool_notice_title": "Streaming Tool Already Open",
+        "streaming_tool_notice_message": "{tools} appears to be running.\n\nIf the calendar, queue, or call overlay does not appear in OBS / Streamlabs, refresh the Browser Source.",
+        "css_version_notice_title": "CSS Version Check",
+        "css_version_notice_message": "The currently selected CSS appears to be old or has no version marker:\n\n{files}\n\nChoose Yes: back up the old CSS, then apply the required update while changing the original CSS as little as possible. Benefit: custom styling is preserved while compatibility is updated. Risk: very old CSS may still need manual adjustment.\n\nChoose No: keep the CSS as-is. Benefit: custom appearance is fully preserved. Risk: older CSS may cause OBS display issues.",
+        "css_updated_title": "CSS Updated",
+        "css_updated_message": "CSS was updated and backups were created:\n\n{files}",
+        "css_update_failed_title": "CSS Update Failed",
+        "css_update_failed_message": "Could not update CSS: {error}",
+        "css_no_version": "no version",
         "display_text": "Call Text",
         "name_hint": "Use {name} for viewer names",
         "copy_url": "Copy URL",
@@ -541,6 +588,23 @@ TRANSLATIONS["ja"].update({
     "calendar_checkin_text_label": "チェックイン時テキスト",
     "calendar_command_text_label": "カレンダー表示コマンド時テキスト",
     "calendar_name_variable_hint": "名前変数: {name}",
+    "manual_calendar_display": "手動カレンダー表示",
+    "manual_calendar_target": "対象名",
+    "manual_calendar_month": "年月",
+    "manual_calendar_month_hint": "空白 = 今月、形式: 2026-06",
+    "manual_calendar_show": "カレンダー表示",
+    "manual_calendar_missing_target": "対象名を入力してください。",
+    "manual_calendar_invalid_month": "YYYY-MM 形式で入力してください。例: 2026-06",
+    "manual_calendar_shown": "{name} のカレンダーを表示しました",
+    "streaming_tool_notice_title": "配信ツールが起動中です",
+    "streaming_tool_notice_message": "{tools} が起動している可能性があります。\n\nOBS / Streamlabs でカレンダー、キュー、呼び出し画面が表示されない場合は、Browser Source を更新してください。",
+    "css_version_notice_title": "CSS バージョン確認",
+    "css_version_notice_message": "現在使用中の CSS が古い、またはバージョン表記がありません:\n\n{files}\n\n「はい」: 古い CSS をバックアップして、元の CSS をできるだけ変更せずに必要な更新を行います。利点はカスタム表示を保ちながら互換性を更新できることです。リスクは非常に古い CSS では手動調整が必要になる可能性があることです。\n\n「いいえ」: そのまま使用します。利点はカスタム表示を完全に維持できることです。リスクは古い CSS により OBS 表示が崩れる可能性があることです。",
+    "css_updated_title": "CSS を更新しました",
+    "css_updated_message": "CSS を更新し、バックアップを作成しました:\n\n{files}",
+    "css_update_failed_title": "CSS 更新失敗",
+    "css_update_failed_message": "CSS を更新できませんでした: {error}",
+    "css_no_version": "バージョン表記なし",
     "duration_zero_hint": "0 は常時表示",
     "blacklist_name": "ブラックリスト名",
     "blacklist_hint": "このリストの Twitch ログイン名または表示名はチェックインせず、すべてのコマンドも無視します。",
@@ -649,6 +713,35 @@ def parse_utc_offset(value: str) -> int | None:
 
 def normalize_blacklist_name(value: str) -> str:
     return str(value or "").strip().lstrip("@").casefold()
+
+
+def detect_running_streaming_tools() -> list[str]:
+    if os.name != "nt":
+        return []
+    try:
+        result = subprocess.run(
+            ["tasklist", "/fo", "csv", "/nh"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if result.returncode != 0:
+        return []
+    found: list[str] = []
+    for row in csv.reader(result.stdout.splitlines()):
+        if not row:
+            continue
+        process_name = row[0].strip().casefold()
+        tool_name = STREAMING_TOOL_PROCESSES.get(process_name)
+        if tool_name and tool_name not in found:
+            found.append(tool_name)
+    return found
 
 
 def detect_default_time_zone_label() -> str:
@@ -1021,6 +1114,41 @@ class State:
                             "created_at": now,
                         }
                     )
+            self.refresh_visible_calendar_date()
+
+    def refresh_visible_calendar_date(self) -> None:
+        calendar_overlay = self.overlay_event["calendar"]
+        if not calendar_overlay.get("visible"):
+            return
+        if int(calendar_overlay.get("today", 0) or 0) <= 0:
+            return
+        username = str(calendar_overlay.get("username", "") or "").strip()
+        if not username:
+            return
+        now = self.calendar_now()
+        if (
+            int(calendar_overlay.get("year", 0) or 0) == now.year
+            and int(calendar_overlay.get("month", 0) or 0) == now.month
+            and int(calendar_overlay.get("today", 0) or 0) == now.day
+        ):
+            return
+        rows = self.read_calendar_rows(now.year, now.month)
+        user_dates = [
+            {"date": row["date"], "isFirst": row.get("isFirst", "").upper() == "YES"}
+            for row in rows
+            if row.get("username", "").casefold() == username.casefold()
+        ]
+        calendar_overlay.update(
+            {
+                "id": calendar_overlay["id"] + 1,
+                "year": now.year,
+                "month": now.month,
+                "today": now.day,
+                "dates": user_dates,
+                "signed_date": "",
+                "sound_url": "",
+            }
+        )
 
     def replay_last_call(self) -> bool:
         with self.lock:
@@ -1158,6 +1286,75 @@ def ensure_default_css() -> None:
     for target in (CALL_CSS_FILE, QUEUE_CSS_FILE):
         if not target.exists():
             target.write_bytes(default_css_bytes)
+
+
+def css_version(path: Path) -> int | None:
+    try:
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines()[:12]:
+            if CSS_VERSION_MARKER_PREFIX in line:
+                value = line.split(CSS_VERSION_MARKER_PREFIX, 1)[1].strip(" */")
+                return int(value)
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def selected_css_entries() -> list[tuple[str, Path]]:
+    ensure_default_css()
+    entries: list[tuple[str, Path]] = []
+    area_map = {
+        "call": (CALL_CSS_DIR, "call_css_file"),
+        "queue": (QUEUE_CSS_DIR, "queue_css_file"),
+        "calendar": (CALENDAR_CSS_DIR, "calendar_css_file"),
+    }
+    with STATE.lock:
+        for area, (css_dir, state_attr) in area_map.items():
+            css_file = Path(getattr(STATE, state_attr, "default.css") or "default.css").name
+            css_path = css_dir / css_file
+            if css_path.is_file():
+                entries.append((area, css_path))
+    return entries
+
+
+def outdated_selected_css_entries() -> list[tuple[str, Path, int | None]]:
+    outdated: list[tuple[str, Path, int | None]] = []
+    seen: set[Path] = set()
+    for area, css_path in selected_css_entries():
+        resolved = css_path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        version = css_version(css_path)
+        if version is None or version < CSS_VERSION:
+            outdated.append((area, css_path, version))
+    return outdated
+
+
+def css_version_marker() -> str:
+    return f"/*\n * {CSS_VERSION_MARKER_PREFIX} {CSS_VERSION}\n */"
+
+
+def migrate_css_content(content: str) -> str:
+    lines = content.splitlines()
+    for index, line in enumerate(lines[:12]):
+        if CSS_VERSION_MARKER_PREFIX in line:
+            lines[index] = f" * {CSS_VERSION_MARKER_PREFIX} {CSS_VERSION}"
+            line_ending = "\n" if content.endswith("\n") else ""
+            return "\n".join(lines) + line_ending
+    separator = "" if not content else "\n\n"
+    return f"{css_version_marker()}{separator}{content}"
+
+
+def backup_and_migrate_css(_area: str, css_path: Path, version: int | None) -> Path:
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    old_version = str(version) if version is not None else "unknown"
+    backup_dir = css_path.parent / "backup"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_path = backup_dir / f"{css_path.stem}.backup-v{old_version}-{timestamp}{css_path.suffix}"
+    shutil.copy2(css_path, backup_path)
+    original = css_path.read_text(encoding="utf-8", errors="replace")
+    css_path.write_text(migrate_css_content(original), encoding="utf-8")
+    return backup_path
 
 
 def active_css_path(area: str) -> Path:
@@ -1616,12 +1813,16 @@ class TwitchChat(threading.Thread):
         sock.settimeout(2)
         UI_EVENTS.put(("status", translate("connected", channel=channel)))
         buffer = ""
+        last_frame_at = time.time()
         try:
             while not self.stop_event.is_set() and not self.reconnect_event.is_set():
                 try:
                     opcode, payload = self._recv_frame(sock)
                 except socket.timeout:
+                    if time.time() - last_frame_at > CHAT_IDLE_TIMEOUT_SECONDS:
+                        raise TimeoutError("Twitch chat idle timeout")
                     continue
+                last_frame_at = time.time()
                 if opcode == 8:
                     break
                 if opcode == 9:
@@ -1750,6 +1951,8 @@ class App:
         self._build()
         self.refresh()
         self.poll_events()
+        self.root.after(800, self.show_streaming_tool_notice_if_needed)
+        self.root.after(1200, self.show_css_version_notice_if_needed)
 
     @staticmethod
     def tr(key: str, **values) -> str:
@@ -1765,6 +1968,59 @@ class App:
             if overflow > 0:
                 self.log_list.delete(0, overflow - 1)
             self.log_list.see(tk.END)
+
+    def show_streaming_tool_notice_if_needed(self) -> None:
+        if not HAS_EXISTING_STATE_FILE:
+            return
+        tools = detect_running_streaming_tools()
+        if not tools:
+            return
+        messagebox.showinfo(
+            self.tr("streaming_tool_notice_title"),
+            self.tr("streaming_tool_notice_message", tools=", ".join(tools)),
+            parent=self.root,
+        )
+
+    def css_area_label(self, area: str) -> str:
+        labels = {
+            "call": self.tr("call_css"),
+            "queue": self.tr("queue_css"),
+            "calendar": self.tr("calendar_css"),
+        }
+        return labels.get(area, area)
+
+    def show_css_version_notice_if_needed(self) -> None:
+        outdated_entries = outdated_selected_css_entries()
+        if not outdated_entries:
+            return
+        file_lines = []
+        for area, css_path, version in outdated_entries:
+            version_text = f"v{version}" if version is not None else self.tr("css_no_version")
+            file_lines.append(f"- {self.css_area_label(area)}: {css_path.name} ({version_text})")
+        should_update = messagebox.askyesno(
+            self.tr("css_version_notice_title"),
+            self.tr("css_version_notice_message", files="\n".join(file_lines), version=CSS_VERSION),
+            parent=self.root,
+        )
+        if not should_update:
+            return
+        try:
+            backup_lines = []
+            for area, css_path, version in outdated_entries:
+                backup_path = backup_and_migrate_css(area, css_path, version)
+                backup_lines.append(f"- {self.css_area_label(area)}: backup/{backup_path.name}")
+        except OSError as exc:
+            messagebox.showerror(
+                self.tr("css_update_failed_title"),
+                self.tr("css_update_failed_message", error=exc),
+                parent=self.root,
+            )
+            return
+        messagebox.showinfo(
+            self.tr("css_updated_title"),
+            self.tr("css_updated_message", files="\n".join(backup_lines)),
+            parent=self.root,
+        )
 
     def _build(self) -> None:
         self.root.title(f"{self.tr('app_title')} v{APP_VERSION}")
@@ -2090,6 +2346,34 @@ class App:
         ttk.Entry(calendar_settings, textvariable=self.calendar_command_text_var).grid(row=7, column=1, columnspan=2, sticky="ew", pady=(8, 0))
         ttk.Label(calendar_settings, text=self.tr("calendar_name_variable_hint")).grid(row=8, column=1, columnspan=2, sticky="w", pady=(3, 0))
         ttk.Button(calendar_settings, text=self.tr("apply"), command=self.apply_settings).grid(row=9, column=1, sticky="w", pady=(12, 0))
+
+        manual_calendar = ttk.LabelFrame(self.calendar_settings_tab, text=self.tr("manual_calendar_display"), padding=12)
+        manual_calendar.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 12))
+        manual_calendar.columnconfigure(1, weight=1)
+        ttk.Label(manual_calendar, text=self.tr("manual_calendar_target")).grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.manual_calendar_target_var = tk.StringVar()
+        manual_target_entry = ttk.Entry(manual_calendar, textvariable=self.manual_calendar_target_var)
+        manual_target_entry.grid(row=0, column=1, sticky="ew")
+        manual_target_entry.bind("<Return>", lambda _event: self.show_manual_calendar())
+        ttk.Label(manual_calendar, text=self.tr("manual_calendar_month")).grid(row=0, column=2, sticky="w", padx=(12, 8))
+        self.manual_calendar_month_var = tk.StringVar()
+        now = STATE.calendar_now()
+        month_values = [""]
+        for offset in range(-12, 13):
+            month_index = now.month - 1 + offset
+            year = now.year + month_index // 12
+            month = month_index % 12 + 1
+            month_values.append(f"{year}-{month:02d}")
+        manual_month_combo = ttk.Combobox(
+            manual_calendar,
+            textvariable=self.manual_calendar_month_var,
+            values=month_values,
+            width=12,
+        )
+        manual_month_combo.grid(row=0, column=3, sticky="w")
+        manual_month_combo.bind("<Return>", lambda _event: self.show_manual_calendar())
+        ttk.Button(manual_calendar, text=self.tr("manual_calendar_show"), command=self.show_manual_calendar).grid(row=0, column=4, padx=(8, 0))
+        ttk.Label(manual_calendar, text=self.tr("manual_calendar_month_hint")).grid(row=1, column=1, columnspan=4, sticky="w", pady=(8, 0))
 
         self.refresh_commands()
         self.refresh_blacklist()
@@ -2499,6 +2783,32 @@ class App:
         elif hasattr(self, "sound_var"):
             self.sound_var.set(DEFAULT_AUDIO_FILE)
         self.set_action_status(self.tr("default_sound_installed", name=DEFAULT_AUDIO_FILE))
+
+    def show_manual_calendar(self) -> None:
+        target = self.manual_calendar_target_var.get().strip().lstrip("@")
+        if not target:
+            messagebox.showerror(self.tr("calendar_command_title"), self.tr("manual_calendar_missing_target"))
+            return
+        month_text = self.manual_calendar_month_var.get().strip()
+        date_override: tuple[int, int] | None = None
+        if month_text:
+            normalized = month_text.replace("/", "-")
+            parts = normalized.split("-", 1)
+            if len(parts) != 2:
+                messagebox.showerror(self.tr("calendar_command_title"), self.tr("manual_calendar_invalid_month"))
+                return
+            try:
+                year = int(parts[0])
+                month = int(parts[1])
+            except ValueError:
+                messagebox.showerror(self.tr("calendar_command_title"), self.tr("manual_calendar_invalid_month"))
+                return
+            if not 2000 <= year <= 2099 or not 1 <= month <= 12:
+                messagebox.showerror(self.tr("calendar_command_title"), self.tr("manual_calendar_invalid_month"))
+                return
+            date_override = (year, month)
+        STATE.show_calendar(target, target, date_override, command_only=True)
+        self.set_action_status(self.tr("manual_calendar_shown", name=target))
 
     def browse_theme(self, area: str) -> None:
         selected = filedialog.askopenfilename(
