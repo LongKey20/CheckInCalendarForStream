@@ -1,4 +1,4 @@
-# StreamerTool v2.0.3
+# StreamerTool v2.1.0
 
 StreamerTool 是給實況主使用的 Windows 工具，提供隊列管理與簽到月曆功能。目前支援 Twitch 聊天室，未來可擴充到 YouTube 等平台。
 
@@ -7,7 +7,7 @@ StreamerTool is a Windows tool for streamers. It provides queue management and a
 StreamerTool は配信者向けの Windows ツールです。キュー管理とチェックインカレンダー機能を提供します。現在は Twitch チャットに対応しており、将来的には YouTube などのプラットフォームにも拡張できます。
 
 ## 下載 / Download / ダウンロード
-StreamerTool　V2.0.3　https://github.com/LongKey20/StreamerTool/releases/tag/Version-2.0.3-Release
+StreamerTool　V2.1.0　https://github.com/LongKey20/StreamerTool/releases/tag/Version-2.1.0-Release
 
 ## 功能 / Features / 機能
 
@@ -22,8 +22,8 @@ StreamerTool　V2.0.3　https://github.com/LongKey20/StreamerTool/releases/tag/V
 - CSS 版本檢查會先備份，再盡量不改動原 CSS 的前提下更新必要內容。
 - OBS Browser Source 分為叫號、隊列、月曆三個 URL。
 - 叫號、隊列、月曆可各自選擇 CSS。
-- 叫號/隊列音效與月曆簽到音效可分開設定。
-- 介面語言支援中文、English、日本語。
+- 叫號/隊列音效與月曆簽到音效可分開設定，也可不更動 CSS 直接靜音。
+- 介面語言支援中文、English、日本語、한국어。
 
 ### English
 
@@ -36,8 +36,9 @@ StreamerTool　V2.0.3　https://github.com/LongKey20/StreamerTool/releases/tag/V
 - CSS version checks back up files first, then apply required compatibility updates with minimal changes.
 - Separate OBS Browser Source URLs for call, queue, and calendar.
 - Call, queue, and calendar can each choose their own CSS.
-- Queue/call sound and calendar check-in sound can be configured separately.
-- Interface languages: Chinese, English, Japanese.
+- Calendar can switch between existing CSS themes and a built-in simple theme with a selectable background image.
+- Queue/call sound and calendar check-in sound can be configured separately and muted without changing CSS.
+- Interface languages: Chinese, English, Japanese, Korean.
 
 ### 日本語
 
@@ -50,8 +51,8 @@ StreamerTool　V2.0.3　https://github.com/LongKey20/StreamerTool/releases/tag/V
 - CSS バージョン確認は先にバックアップし、元の CSS をできるだけ保ったまま必要な互換更新を行います。
 - OBS Browser Source 用 URL は呼び出し、キュー、カレンダーで分かれています。
 - 呼び出し、キュー、カレンダーはそれぞれ別の CSS を選択できます。
-- キュー/呼び出し効果音とカレンダーチェックイン効果音を個別に設定できます。
-- UI 言語は中文、English、日本語に対応しています。
+- キュー/呼び出し効果音とカレンダーチェックイン効果音を個別に設定でき、CSS を変更せずにミュートできます。
+- UI 言語は中文、English、日本語、한국어に対応しています。
 
 ## 安裝 / Installation / インストール
 
@@ -60,11 +61,11 @@ StreamerTool　V2.0.3　https://github.com/LongKey20/StreamerTool/releases/tag/V
 1. 從 Release 下載：
 
    ```text
-   StreamerTool-v2.0.3.exe
+   StreamerTool-v2.1.0.exe
    ```
 
 2. 將 exe 放到你想使用的資料夾。
-3. 雙擊執行 `StreamerTool-v2.0.3.exe`。
+3. 雙擊執行 `StreamerTool-v2.1.0.exe`。
 4. 在「連接和 Log」輸入 Twitch 頻道名稱並連接。
 
 首次啟動時會在 exe 旁建立：
@@ -81,11 +82,11 @@ audio/
 1. Download from Release:
 
    ```text
-   StreamerTool-v2.0.3.exe
+   StreamerTool-v2.1.0.exe
    ```
 
 2. Put the exe in the folder you want to use.
-3. Double-click `StreamerTool-v2.0.3.exe`.
+3. Double-click `StreamerTool-v2.1.0.exe`.
 4. Enter the Twitch channel name in Connection & Log and connect.
 
 On first launch, these folders are created beside the exe:
@@ -102,11 +103,11 @@ audio/
 1. Release からダウンロードします:
 
    ```text
-   StreamerTool-v2.0.3.exe
+   StreamerTool-v2.1.0.exe
    ```
 
 2. exe を使用したいフォルダーに置きます。
-3. `StreamerTool-v2.0.3.exe` をダブルクリックします。
+3. `StreamerTool-v2.1.0.exe` をダブルクリックします。
 4. 「接続とログ」で Twitch チャンネル名を入力して接続します。
 
 初回起動時、exe の横に以下のフォルダーが作成されます:
@@ -198,7 +199,8 @@ OBS に Browser Source を追加し、必要な URL を入力します:
 4. 指令設定：排隊指令、顯示隊列指令、顯示月曆指令。
 5. 黑名單：新增或刪除要忽略的名稱。
 6. 隊列設定：叫號文字、顯示秒數、隊列顯示數量、音效、Call/Queue CSS。
-7. 月曆設定：月曆顯示秒數、星期文字、CSV 前綴、Calendar CSS、簽到音效、月曆文字模板、手動顯示月曆。
+7. 月曆設定：月曆顯示秒數、星期文字、CSV 前綴、Calendar CSS / 簡易主題背景圖、簽到音效、月曆文字模板、手動顯示月曆。
+8. 測試功能：頭像快取天數設定與快取優缺點說明。
 
 ### English
 
@@ -208,7 +210,8 @@ OBS に Browser Source を追加し、必要な URL を入力します:
 4. Command Settings: join queue commands, show queue commands, show calendar commands.
 5. Blacklist: add or remove names to ignore.
 6. Queue Settings: call text, display duration, queue display count, sound, Call/Queue CSS.
-7. Calendar Settings: calendar duration, weekday text, CSV prefix, Calendar CSS, check-in sound, calendar text templates, manual calendar display.
+7. Calendar Settings: calendar duration, weekday text, CSV prefix, Calendar CSS or simple-theme background image, check-in sound, calendar text templates, manual calendar display.
+8. Test Features: avatar cache days and the cache tradeoff notes.
 
 ### 日本語
 
@@ -218,7 +221,8 @@ OBS に Browser Source を追加し、必要な URL を入力します:
 4. コマンド設定: キュー参加コマンド、キュー表示コマンド、カレンダー表示コマンド。
 5. ブラックリスト: 無視する名前の追加と削除。
 6. キュー設定: 呼び出し文、表示秒数、キュー表示数、効果音、Call/Queue CSS。
-7. カレンダー設定: カレンダー表示秒数、曜日表示、CSV 接頭辞、Calendar CSS、チェックイン効果音、カレンダーテキスト、手動カレンダー表示。
+7. カレンダー設定: カレンダー表示秒数、曜日表示、CSV 接頭辞、Calendar CSS / 簡易テーマ背景画像、チェックイン効果音、カレンダーテキスト、手動カレンダー表示。
+8. テスト機能: アバターキャッシュ日数と、キャッシュ利用時の利点・欠点を表示します。
 
 ## 指令 / Commands / コマンド
 
@@ -377,11 +381,14 @@ csv/
 date, username, displayName, timestamp, isFirst
 ```
 
-同一使用者同一天只會保存一筆紀錄。Avatar 不會保存到 CSV，會由 overlay 即時讀取：
+同一使用者同一天只會保存一筆紀錄。Avatar 不會保存到 CSV。月曆會先使用本地快取，必要時再讀取 Unavatar：
 
 ```text
+setting/avatar-cache/twitch/
 https://unavatar.io/twitch/{username}
 ```
+
+頭像快取天數可在「測試功能」設定。設為 `0` 時不保存快取，會每次嘗試取得最新頭像；若後端取圖失敗，overlay 會回退到直接讀取 Unavatar，避免錯誤 fallback。
 
 ### English
 
@@ -397,11 +404,14 @@ Columns:
 date, username, displayName, timestamp, isFirst
 ```
 
-Each user is saved at most once per day. Avatar URLs are not saved in CSV and are loaded by the overlay:
+Each user is saved at most once per day. Avatar URLs are not saved in CSV. The calendar uses the local avatar cache first, then Unavatar when needed:
 
 ```text
+setting/avatar-cache/twitch/
 https://unavatar.io/twitch/{username}
 ```
+
+Avatar cache days can be changed in Test Features. Setting it to `0` disables saved cache and tries to fetch the latest avatar every time. If the backend fetch fails, the overlay falls back to loading Unavatar directly.
 
 ### 日本語
 
@@ -417,11 +427,14 @@ csv/
 date, username, displayName, timestamp, isFirst
 ```
 
-同じユーザーは 1 日 1 件だけ保存されます。アバター URL は CSV に保存されず、overlay が読み込みます:
+同じユーザーは 1 日 1 件だけ保存されます。アバター URL は CSV に保存されません。カレンダーはローカルキャッシュを先に使い、必要に応じて Unavatar を読み込みます:
 
 ```text
+setting/avatar-cache/twitch/
 https://unavatar.io/twitch/{username}
 ```
+
+アバターキャッシュ日数は「テスト機能」で変更できます。`0` にすると保存キャッシュを使わず、毎回最新のアバター取得を試します。バックエンド取得に失敗した場合、overlay は Unavatar の直接読み込みに戻します。
 
 ## CSS 主題 / CSS Themes / CSS テーマ
 
@@ -456,6 +469,8 @@ css/calendar/
 ```
 
 Call, queue, and calendar can each choose their own CSS.
+
+Calendar also has a simple theme mode. Use the radio buttons to switch between existing CSS themes and the simple theme; the inactive setting group is hidden to keep the UI compact. In simple mode, Calendar CSS selection is hidden and background image selection is shown. You can also choose aspect ratio, preset/custom font source, text color, day-cell background color and opacity, today border color, and first check-in glow color from the UI. Common aspect ratios are listed, and custom values such as `5:4` or `1.25` can be typed directly; in simple mode, date cells stretch with the chosen ratio so the display remains visually consistent. It uses the built-in default Calendar CSS from the exe and only adds the selected simple-theme options, so it does not create or overwrite files in `css/calendar/`. Chosen images and custom font files are copied under `setting/calendar-theme/`.
 
 CSS compatibility is checked with a version marker. If the selected CSS has no marker or an older version, StreamerTool asks whether to update it. Auto update backs up the file into that area's `backup/` folder, then applies only the required compatibility changes while preserving the original CSS as much as possible.
 
@@ -501,7 +516,7 @@ audio/
 audio/default.mp3
 ```
 
-叫號/隊列音效與月曆簽到音效可分開設定。
+叫號/隊列音效與月曆簽到音效可分開設定。各音效也可在 UI 中靜音，不需要修改 overlay CSS。
 
 ### English
 
@@ -517,7 +532,7 @@ Selected sound files are copied into this folder. The default sound is:
 audio/default.mp3
 ```
 
-Queue/call sound and calendar check-in sound can be configured separately.
+Queue/call sound and calendar check-in sound can be configured separately. Each sound can also be muted from the UI without changing overlay CSS.
 
 ### 日本語
 
@@ -533,14 +548,21 @@ audio/
 audio/default.mp3
 ```
 
-キュー/呼び出し効果音とカレンダーチェックイン効果音は別々に設定できます。
+キュー/呼び出し効果音とカレンダーチェックイン効果音は別々に設定できます。各効果音は UI からミュートでき、overlay CSS は変更不要です。
 
-## v2.0.3 更新重點 / v2.0.3 Highlights / v2.0.3 更新点
+## v2.1.0 更新重點 / v2.1.0 Highlights / v2.1.0 更新点
 
 ### 中文
 
 - 月曆設定新增手動顯示月曆，可指定人物與月份。
 - 改善跨日與長時間閒置後的聊天室連線恢復。
+- 聊天室 idle timeout 調整為 610 秒，容忍漏掉一次 Twitch IRC PING。
+- 月曆會先預載用戶圖片，再顯示 overlay，減少圖片延遲補出的情況。
+- 多個月曆顯示同時觸發時，會依序顯示，避免後一筆覆蓋前一筆。
+- 月曆處理改為 queue 順序執行，收到訊息或月曆指令時會先排隊，再等待頭像載入後顯示。
+- 頭像快取新增可調天數，快取保存到 `setting/avatar-cache/twitch/`；若後端取圖失敗會回退到直接讀取 Unavatar。
+- 手動顯示月曆等同月曆指令，只顯示月曆，不會寫入 CSV，也不會顯示成「已簽到」。
+- 星期文字選項改為顯示實際效果，例如 `中文（日 一 二 三 四 五 六）`。
 - 啟動時可偵測 OBS / Streamlabs 是否已開啟，並提示重新整理 Browser Source。
 - CSS 加入版本檢查；自動更新會先備份，再以最小必要改動補上相容內容。
 
@@ -548,6 +570,13 @@ audio/default.mp3
 
 - Calendar Settings can manually show a calendar for a selected name and month.
 - Improved recovery after day changes and long idle chat connections.
+- Chat idle timeout is now 610 seconds, allowing one missed Twitch IRC PING.
+- Calendar avatars are preloaded before showing the overlay to reduce late image pop-in.
+- Simultaneous calendar display events are shown in order instead of overwriting each other.
+- Calendar handling now runs through a queue. Incoming messages and calendar commands are queued, then shown after avatar loading finishes.
+- Avatar cache days are configurable. Twitch cache files are stored in `setting/avatar-cache/twitch/`, and failed backend fetches fall back to direct Unavatar loading.
+- Manual calendar display behaves like a calendar command: it only shows the calendar, does not write CSV, and is not reported as a check-in.
+- Weekday text choices now show the actual display result, such as `English (Sun Mon Tue Wed Thu Fri Sat)`.
 - Startup can detect already-running OBS / Streamlabs and remind users to refresh Browser Sources.
 - CSS version checks were added. Auto update backs up files first, then applies only the required compatibility changes.
 
@@ -555,6 +584,13 @@ audio/default.mp3
 
 - カレンダー設定で対象名と月を指定して手動表示できるようになりました。
 - 日付変更後や長時間アイドル後のチャット接続復帰を改善しました。
+- チャット idle timeout を 610 秒に変更し、Twitch IRC PING 1 回分の取りこぼしを許容します。
+- カレンダーはユーザー画像を先に読み込んでから overlay を表示し、画像の遅延表示を減らします。
+- 複数のカレンダー表示が同時に発生した場合、上書きせず順番に表示します。
+- カレンダー処理は queue で順番に実行します。メッセージやカレンダーコマンドは一度 queue に入り、アバター読み込み後に表示されます。
+- アバターキャッシュ日数を設定できます。Twitch キャッシュは `setting/avatar-cache/twitch/` に保存され、バックエンド取得に失敗した場合は Unavatar の直接読み込みに戻します。
+- 手動カレンダー表示はカレンダーコマンドと同じ扱いで、CSV には書き込まず、「チェックイン」として表示しません。
+- 曜日表示の選択肢は `日本語（日 月 火 水 木 金 土）` のように実際の表示が分かる形にしました。
 - 起動時に OBS / Streamlabs の起動を検出し、Browser Source の更新を促せます。
 - CSS バージョン確認を追加しました。自動更新は先にバックアップし、必要な互換更新だけを行います。
 
@@ -567,7 +603,7 @@ Release 打包前請先關閉正在執行的 StreamerTool。
 ```powershell
 python -m py_compile .\StreamerTool.py
 python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
-Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.3.exe -Force
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.1.0.exe -Force
 ```
 
 ### English
@@ -577,7 +613,7 @@ Close running StreamerTool processes before building a release.
 ```powershell
 python -m py_compile .\StreamerTool.py
 python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
-Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.3.exe -Force
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.1.0.exe -Force
 ```
 
 ### 日本語
@@ -587,7 +623,7 @@ Release ビルド前に実行中の StreamerTool を閉じてください。
 ```powershell
 python -m py_compile .\StreamerTool.py
 python -m PyInstaller --noconfirm --clean .\StreamerTool.spec
-Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.0.3.exe -Force
+Copy-Item .\dist\StreamerTool.exe .\dist\StreamerTool-v2.1.0.exe -Force
 ```
 
 ## 授權 / License / ライセンス

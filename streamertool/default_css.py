@@ -1,0 +1,169 @@
+from __future__ import annotations
+
+DEFAULT_CSS = """/*
+ * StreamerTool CSS Version: 1
+ * Queue for Streamer - OBS 憿舐內璅??
+ * ?航?曹耨?寞迨瑼BS ??渡? Browser Source 敺?憟?唳見撘?
+ */
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  --overlay-safe-padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Microsoft JhengHei", sans-serif;
+}
+
+#overlay-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-area {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: var(--overlay-safe-padding);
+  box-sizing: border-box;
+}
+
+.overlay-message {
+  max-width: 90%;
+  box-sizing: border-box;
+  padding: 26px 44px;
+  color: white;
+  font-size: 60px;
+  font-weight: 900;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-text-stroke: 2px #000;
+  paint-order: stroke fill;
+  text-shadow:
+    3px 3px 0 #000,
+    -3px 3px 0 #000,
+    3px -3px 0 #000,
+    -3px -3px 0 #000,
+    0 4px 12px #000;
+  background: transparent;
+  border: 3px solid transparent;
+  border-radius: 24px;
+  box-shadow: none;
+  opacity: 0;
+  transform: translateY(28px) scale(0.92);
+}
+
+.overlay-message[hidden] {
+  display: none;
+}
+
+.overlay-message.show {
+  opacity: 1;
+  animation: message-pop-in 0.32s cubic-bezier(0.2, 0.85, 0.3, 1.2) both;
+}
+
+/*
+ * 瘥?靘?頝唾絲???啣?雿?
+ * 0.055s ?臬???銋?????0.7s ?舀??????恍摨艾?
+ */
+#call-message .char {
+  display: inline-block;
+  white-space: pre;
+}
+
+#call-message.show .char {
+  animation: character-bounce 0.78s cubic-bezier(0.2, 0.75, 0.35, 1) both;
+  animation-delay: calc(var(--char-index) * 0.055s);
+}
+
+#queue-message {
+  font-size: 46px;
+  text-align: left;
+}
+
+#call-message {
+  text-align: left;
+}
+
+.queue-list {
+  margin: 0;
+  padding-left: 1.6em;
+}
+
+.queue-list li {
+  margin: 0.18em 0;
+}
+
+#queue-message.show .queue-list li {
+  animation: queue-line-pop 0.46s cubic-bezier(0.2, 0.85, 0.3, 1.15) both;
+}
+
+#queue-message.show .queue-list li:nth-child(1) { animation-delay: 0.00s; }
+#queue-message.show .queue-list li:nth-child(2) { animation-delay: 0.06s; }
+#queue-message.show .queue-list li:nth-child(3) { animation-delay: 0.12s; }
+#queue-message.show .queue-list li:nth-child(4) { animation-delay: 0.18s; }
+#queue-message.show .queue-list li:nth-child(5) { animation-delay: 0.24s; }
+#queue-message.show .queue-list li:nth-child(6) { animation-delay: 0.30s; }
+#queue-message.show .queue-list li:nth-child(n + 7) { animation-delay: 0.36s; }
+
+.queue-more {
+  list-style-position: outside;
+}
+
+@keyframes message-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes queue-line-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-18px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes character-bounce {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(-22px) scale(1.08);
+  }
+  62% {
+    transform: translateY(4px) scale(0.98);
+  }
+  78% {
+    transform: translateY(-2px) scale(1.01);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+"""
+
